@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Cadastro de Músicos CCA</title>
+<title>Registro de Músicos CCA</title>
 
 <style>
 body { font-family: Arial; background:#f4f4f4; padding:20px; margin-top: 60px; }
@@ -25,19 +25,19 @@ th { background:#0078D4; color:white; }
 <body>
 
 <img src="logo.png" class="logo-topo">
-<h1>Cadastro de Músicos CCA</h1>
+<h1>Registro de Músicos CCA</h1>
 
-<input type="text" id="busca" placeholder="Pesquisar...">
+<input type="text" id="busca" placeholder="Buscar...">
 
 <div class="filtros">
-<select id="filtroIgreja"><option value="">Todas Igrejas</option></select>
-<select id="filtroInstrumento"><option value="">Todos Instrumentos</option></select>
+<select id="filtroIgreja"><option value="">Todas las Iglesias</option></select>
+<select id="filtroInstrumento"><option value="">Todos los Instrumentos</option></select>
 <select id="filtroTipo">
-<option value="">Todos Tipos</option>
+<option value="">Todos los Tipos</option>
 <option>Oficializado</option>
 <option>Culto Oficial</option>
 <option>RJM</option>
-<option>Estudante</option>
+<option>Estudiante</option>
 </select>
 </div>
 
@@ -45,7 +45,7 @@ th { background:#0078D4; color:white; }
 
 <form id="formMusico">
 <select id="igreja" required></select>
-<input type="text" id="nome" placeholder="Nome" required>
+<input type="text" id="nome" placeholder="Nombre" required>
 <select id="instrumento1" required></select>
 <select id="instrumento2" style="display:none;"></select>
 <button type="button" class="plus-btn" onclick="mostrarSegundo()">+</button>
@@ -53,25 +53,25 @@ th { background:#0078D4; color:white; }
 <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
 
 <select id="tipo" required>
-<option value="">Selecione</option>
+<option value="">Seleccione</option>
 <option>Oficializado</option>
 <option>Culto Oficial</option>
 <option>RJM</option>
-<option>Estudante</option>
+<option>Estudiante</option>
 </select>
 
-<button type="submit">Salvar</button>
+<button type="submit">Guardar</button>
 </form>
 
 <table>
 <thead>
 <tr>
-<th>Igreja</th>
-<th>Nome</th>
+<th>Iglesia</th>
+<th>Nombre</th>
 <th>Instrumento</th>
 <th>Tipo</th>
-<th>Contato</th>
-<th>Ações</th>
+<th>Contacto</th>
+<th>Acciones</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -93,8 +93,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-const igrejas = ["Comúm Congregação","ALTO MERLO","BELLA VISTA","CABA","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
-const instrumentos = ["Instrumento","ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARONE","OBOÉ","FAGOTE","SAXO-SOPRANO","SAXO-ALTO","SAXO-TENOR","SAXO-BARITONO","TROMPETA","FISCORNIO","TROMPA","TROMBÓN","BOMBARDINO","TUBA"];
+const igrejas = ["Común Congregación","ALTO MERLO","BELLA VISTA","CABA","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
+const instrumentos = ["Instrumento","ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPA","TROMBÓN","BOMBARDINO","TUBA"];
 
 const igrejaSelect = document.getElementById("igreja");
 const instrumento1 = document.getElementById("instrumento1");
@@ -240,7 +240,7 @@ function editar(key){
 }
 
 function excluir(key){
-  if(confirm("Deseja realmente excluir este músico?")) {
+  if(confirm("¿Realmente desea eliminar a este músico?")) {
     database.ref('musicos/' + key).remove();
   }
 }
