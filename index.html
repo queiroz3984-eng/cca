@@ -17,10 +17,13 @@ th { background:#0078D4; color:white; }
 .filtros select { width:160px; }
 .logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
 
-/* Contenedor de acciones superiores y diseño del botón Excel */
+/* Contenedor de acciones superiores y diseño de los botones */
 .topo-acoes { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.botoes-acao { display: flex; gap: 10px; }
 .btn-excel { background: #107C41; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
 .btn-excel:hover { background: #0b592e; }
+.btn-importar { background: #0078D4; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
+.btn-importar:hover { background: #005a9e; }
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -48,7 +51,11 @@ th { background:#0078D4; color:white; }
 
 <div class="topo-acoes">
   <div id="contador"><strong>Total: 0 músico(s)</strong></div>
-  <button type="button" class="btn-excel" onclick="exportarExcel()">📊 Exportar a Excel</button>
+  <div class="botoes-acao">
+    <input type="file" id="inputImportar" accept=".csv" style="display: none;" onchange="importarExcel(event)">
+    <button type="button" class="btn-importar" onclick="document.getElementById('inputImportar').click()">📥 Importar Excel (.csv)</button>
+    <button type="button" class="btn-excel" onclick="exportarExcel()">📊 Exportar a Excel</button>
+  </div>
 </div>
 
 <form id="formMusico">
@@ -166,6 +173,12 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   };
 
   if (editKey === null) {
+    // Validación también al guardar manualmente desde el formulario
+    const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
+    if (existe) {
+      alert("Este músico ya se encuentra registrado en esta iglesia.");
+      return;
+    }
     database.ref('musicos').push(dados);
   } else {
     database.ref('musicos/' + editKey).set(dados);
@@ -254,17 +267,14 @@ function excluir(key){
   }
 }
 
-// Función de exportación definitiva basada en CSV nativo con delimitador local de Windows/Excel
 function exportarExcel() {
   if (filtrados.length === 0) {
     alert("No hay datos para exportar.");
     return;
   }
 
-  // Definimos los encabezados del archivo
   let csvContent = "Iglesia;Nombre;Instrumento;Tipo;Contacto\n";
 
-  // Recorremos los registros respetando los filtros de búsqueda
   filtrados.forEach(m => {
     let fila = [
       m.igreja,
@@ -272,24 +282,86 @@ function exportarExcel() {
       m.instrumento,
       m.tipo,
       m.contato
-    ].join(";"); // Punto y coma garantiza separación automática por columnas en Excel de nuestra región
+    ].join(";");
     
     csvContent += fila + "\n";
   });
 
-  // '\ufeff' es el marcador BOM de orden de bytes UTF-8 indispensable
-  // para que Excel reconozca las tildes, acentos y la eñe sin romper los caracteres
   const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  // Guardamos con extensión .csv para eludir por completo el motor de análisis de macros dañinas de Excel
   link.setAttribute("download", "Registro_de_Musicos_CCA.csv");
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// Nueva función optimizada para evitar importaciones duplicadas
+function importarExcel(event) {
+  const archivo = event.target.files[0];
+  if (!archivo) return;
+
+  const lector = new FileReader();
+  lector.onload = function(e) {
+    const contenido = e.target.result;
+    const lineas = contenido.split(/\r?\n/);
+    
+    if (lineas.length <= 1 || lineas[0].trim() === "") {
+      alert("El archivo seleccionado está vacío o no es válido.");
+      return;
+    }
+
+    let registrosImportados = 0;
+    let registrosDuplicados = 0;
+
+    for (let i = 1; i < lineas.length; i++) {
+      const linea = lineas[i].trim();
+      if (linea === "") continue; 
+
+      const campos = linea.split(";");
+
+      if (campos.length >= 5) {
+        const nomeImportar = campos[1].trim();
+        const igrejaImportar = campos[0].trim();
+
+        // 🛡️ VALIDACIÓN DE DUPLICADOS: Compara con la lista local actual de Firebase
+        const yaExiste = lista.some(m => 
+          m.nome.toLowerCase() === nomeImportar.toLowerCase() && 
+          m.igreja.toLowerCase() === igrejaImportar.toLowerCase()
+        );
+
+        if (yaExiste) {
+          registrosDuplicados++;
+          continue; // Si ya existe, salta esta fila y va a la siguiente
+        }
+
+        const dados = {
+          igreja: igrejaImportar,
+          nome: nomeImportar,
+          instrumento: campos[2].trim(),
+          tipo: campos[3].trim(),
+          contato: campos[4].trim()
+        };
+
+        database.ref('musicos').push(dados);
+        registrosImportados++;
+      }
+    }
+
+    // Mensaje informativo final detallado
+    if (registrosDuplicados > 0) {
+      alert(`Importación finalizada:\n✅ ${registrosImportados} nuevos músicos agregados.\n⚠️ ${registrosDuplicados} registros fueron ignorados por estar duplicados.`);
+    } else {
+      alert(`¡Éxito! Se importaron ${registrosImportados} músicos correctamente.`);
+    }
+    
+    event.target.value = '';
+  };
+
+  lector.readAsText(archivo, 'UTF-8');
 }
 
 busca.addEventListener("input", atualizar);
