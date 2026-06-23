@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cadastro de Músicos Online</title>
+
+<style>
+body { font-family: Arial; background:#f4f4f4; padding:20px; margin-top: 60px; }
+form, table { background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; }
+input, select { padding:8px; margin:5px; width:180px; }
+button { padding:6px 10px; border:none; cursor:pointer; border-radius:5px; }
+.plus-btn { width:auto; background:#0078D4; color:white; }
+table { width:100%; border-collapse:collapse; }
+th, td { padding:10px; border:1px solid #ccc; }
+th { background:#0078D4; color:white; }
+#busca { width:250px; padding:10px; }
+.filtros select { width:160px; }
+.logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+</head>
+
+<body>
+
+<img src="logo.png" class="logo-topo">
+<h1>Cadastro de Músicos Online</h1>
+
+<input type="text" id="busca" placeholder="Pesquisar...">
+
+<div class="filtros">
+<select id="filtroIgreja"><option value="">Todas Igrejas</option></select>
+<select id="filtroInstrumento"><option value="">Todos Instrumentos</option></select>
+<select id="filtroTipo">
+<option value="">Todos Tipos</option>
+<option>Oficializado</option>
+<option>Culto Oficial</option>
+<option>RJM</option>
+<option>Estudante</option>
+</select>
+</div>
+
+<div id="contador"><strong>Total: 0 músico(s)</strong></div>
+
+<form id="formMusico">
+<select id="igreja" required></select>
+<input type="text" id="nome" placeholder="Nome" required>
+<select id="instrumento1" required></select>
+<select id="instrumento2" style="display:none;"></select>
+<button type="button" class="plus-btn" onclick="mostrarSegundo()">+</button>
+
+<input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
+
+<select id="tipo" required>
+<option value="">Selecione</option>
+<option>Oficializado</option>
+<option>Culto Oficial</option>
+<option>RJM</option>
+<option>Estudante</option>
+</select>
+
+<button type="submit">Salvar</button>
+</form>
+
+<table>
+<thead>
+<tr>
+<th>Igreja</th>
+<th>Nome</th>
+<th>Instrumento</th>
+<th>Tipo</th>
+<th>Contato</th>
+<th>Ações</th>
+</tr>
+</thead>
+<tbody id="tabela"></tbody>
+</table>
+
+<script>
+// ✅ SEU COFRE ONLINE CONFIGURADO COM SUCESSO
+const firebaseConfig = {
+  apiKey: "AIzaSyDCTwZh5zlz_EBS3vjfyXKgBM-BibpMBnA",
+  authDomain: "cadastro-musicos-cca-5d5fa.firebaseapp.com",
+  databaseURL: "https://cadastro-musicos-cca-5d5fa-default-rtdb.firebaseio.com",
+  projectId: "cadastro-musicos-cca-5d5fa",
+  storageBucket: "cadastro-musicos-cca-5d5fa.firebasestorage.app",
+  messagingSenderId: "195805035055",
+  appId: "1:195805035055:web:48d0a486d25dc4e980a4da"
+};
+
+// Inicializando o Firebase com as suas credenciais
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+const igrejas = ["Comúm Congregação","ALTO MERLO","BELLA VISTA","CABA","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
+const instrumentos = ["Instrumento","ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARONE","OBOÉ","FAGOTE","SAXO-SOPRANO","SAXO-ALTO","SAXO-TENOR","SAXO-BARITONO","TROMPETA","FISCORNIO","TROMPA","TROMBÓN","BOMBARDINO","TUBA"];
+
+const igrejaSelect = document.getElementById("igreja");
+const instrumento1 = document.getElementById("instrumento1");
+const instrumento2 = document.getElementById("instrumento2");
+const filtroIgreja = document.getElementById("filtroIgreja");
+const filtroInstrumento = document.getElementById("filtroInstrumento");
+const filtroTipo = document.getElementById("filtroTipo");
+const tabela = document.getElementById("tabela");
+const busca = document.getElementById("busca");
+const contador = document.getElementById("contador");
+const inputContato = document.getElementById("contato");
+
+let lista = []; 
+let editKey = null; 
+
+igrejas.forEach(i=>{
+  igrejaSelect.innerHTML += `<option>${i}</option>`;
+  filtroIgreja.innerHTML += `<option>${i}</option>`;
+});
+
+instrumentos.forEach(i=>{
+  instrumento1.innerHTML += `<option>${i}</option>`;
+  instrumento2.innerHTML += `<option>${i}</option>`;
+  filtroInstrumento.innerHTML += `<option>${i}</option>`;
+});
+
+function mostrarSegundo() {
+  instrumento2.style.display = "inline-block";
+}
+
+inputContato.addEventListener("input", function (e) {
+  let value = e.target.value.replace(/\D/g, '');
+  if (value.startsWith("54")) value = value.substring(2);
+  if (value.startsWith("9")) value = value.substring(1);
+  value = value.substring(0, 10);
+  let formatted = "+54 9";
+  if (value.length >= 1) formatted += " " + value.substring(0, 2);
+  if (value.length >= 3) formatted += " " + value.substring(2, 6);
+  if (value.length >= 7) formatted += "-" + value.substring(6, 10);
+  e.target.value = formatted;
+});
+
+document.getElementById("formMusico").addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const inst1 = instrumento1.value;
+  const inst2 = instrumento2.value;
+  let instrumentosFinal = [inst1];
+
+  if (instrumento2.style.display !== "none" && inst2 && inst2 !== inst1) {
+    instrumentosFinal.push(inst2);
+  }
+
+  const dados = {
+    igreja: igrejaSelect.value,
+    nome: nome.value,
+    instrumento: instrumentosFinal.join(", "),
+    tipo: tipo.value,
+    contato: contato.value
+  };
+
+  if (editKey === null) {
+    database.ref('musicos').push(dados);
+  } else {
+    database.ref('musicos/' + editKey).set(dados);
+    editKey = null;
+  }
+
+  document.getElementById("formMusico").reset();
+  instrumento2.style.display = "none";
+});
+
+// ✅ RECEBER E ATUALIZAR DADOS EM TEMPO REAL
+database.ref('musicos').on('value', (snapshot) => {
+  lista = [];
+  snapshot.forEach((childSnapshot) => {
+    lista.push({
+      key: childSnapshot.key,
+      ...childSnapshot.val()
+    });
+  });
+  atualizar();
+});
+
+function atualizar(){
+  const texto = busca.value.toLowerCase();
+  const ig = filtroIgreja.value;
+  const inst = filtroInstrumento.value;
+  const tipoF = filtroTipo.value;
+
+  tabela.innerHTML = "";
+
+  const filtrados = lista
+  .filter(m =>
+    (!ig || m.igreja === ig) &&
+    (!inst || m.instrumento.includes(inst)) &&
+    (!tipoF || m.tipo === tipoF) &&
+    (
+      m.nome.toLowerCase().includes(texto) ||
+      m.instrumento.toLowerCase().includes(texto)
+    )
+  )
+  .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  filtrados.forEach((m)=>{
+    tabela.innerHTML += `
+    <tr>
+      <td>${m.igreja}</td>
+      <td>${m.nome}</td>
+      <td>${m.instrumento}</td>
+      <td>${m.tipo}</td>
+      <td>${m.contato}</td>
+      <td>
+        <button onclick="editar('${m.key}')">✏️</button>
+        <button onclick="excluir('${m.key}')">🗑️</button>
+      </td>
+    </tr>`;
+  });
+
+  contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s)</strong>`;
+}
+
+function editar(key){
+  const m = lista.find(x => x.key === key);
+  if(!m) return;
+
+  igrejaSelect.value = m.igreja;
+  nome.value = m.nome;
+  tipo.value = m.tipo;
+  contato.value = m.contato;
+
+  const inst = m.instrumento.split(", ");
+  instrumento1.value = inst[0];
+
+  if (inst[1]) {
+    instrumento2.style.display = "inline-block";
+    instrumento2.value = inst[1];
+  } else {
+    instrumento2.style.display = "none";
+  }
+
+  editKey = key;
+}
+
+function excluir(key){
+  if(confirm("Deseja realmente excluir este músico?")) {
+    database.ref('musicos/' + key).remove();
+  }
+}
+
+busca.addEventListener("input", atualizar);
+filtroIgreja.addEventListener("change", atualizar);
+filtroInstrumento.addEventListener("change", atualizar);
+filtroTipo.addEventListener("change", atualizar);
+</script>
+
+</body>
+</html>
