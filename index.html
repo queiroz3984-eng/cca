@@ -14,8 +14,10 @@ table { width:100%; border-collapse:collapse; }
 th, td { padding:10px; border:1px solid #ccc; }
 th { background:#0078D4; color:white; }
 #busca { width:250px; padding:10px; }
-.filtros select { width:160px; }
 .logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
+
+/* Posicionamento do Botão Cerrar Sesión no Topo Esquerdo */
+.topo-esquerda-logout { position: absolute; top: 210px; right: 30px; }
 
 /* Contenedor de acciones superiores y diseño de los botones */
 .topo-acoes { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
@@ -32,6 +34,17 @@ th { background:#0078D4; color:white; }
 #tela-login input { width: 90%; display: block; margin: 10px auto; padding: 10px; }
 #tela-login button { width: 96%; background: #0078D4; color: white; padding: 10px; font-weight: bold; margin-top: 10px; }
 #conteudo-sistema { display: none; } /* Escondido por padrão */
+
+/* Estilos comuns para Filtros de Múltipla Escolha (Dropdown Checkbox) */
+.filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; }
+.multiselect { width: 200px; position: relative; display: inline-block; font-size: 14px; vertical-align: middle; }
+.selectBox { position: relative; }
+.selectBox select { width: 100%; font-weight: normal; padding: 8px; margin: 0; }
+.overSelect { position: absolute; left: 0; right: 0; top: 0; bottom: 0; cursor: pointer; }
+.checkboxes-dropdown { display: none; border: 1px solid #ccc; border-top: none; position: absolute; background-color: #fff; width: 100%; z-index: 10; max-height: 250px; overflow-y: auto; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 0 0 5px 5px; padding: 5px 0; }
+.checkboxes-dropdown label { display: block; padding: 6px 12px; cursor: pointer; color: #333; text-align: left; }
+.checkboxes-dropdown label:hover { background-color: #0078D4; color: white; }
+.checkboxes-dropdown input { width: auto; margin-right: 10px; vertical-align: middle; }
 </style>
 
 </head>
@@ -46,28 +59,41 @@ th { background:#0078D4; color:white; }
 </div>
 
 <div id="conteudo-sistema">
-  <img src="logo.png" class="logo-topo">
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h1>Registro de Músicos CCA</h1>
+  <div class="topo-esquerda-logout">
     <button type="button" class="btn-logout" id="btn-sair">❌ Cerrar Sesión</button>
   </div>
+
+  <img src="logo.png" class="logo-topo">
+  <h1>Registro de Músicos CCA</h1>
 
   <input type="text" id="busca" placeholder="Buscar...">
 
   <div class="filtros">
-  <select id="filtroIgreja"><option value="">Todas las Iglesias</option></select>
-  <select id="filtroInstrumento"><option value="">Todos los Instrumentos</option></select>
-  <select id="filtroTipo">
-  <option value="">Todos los Tipos</option>
-  <option>Enc. Regional</option>
-  <option>Encargado</option>
-  <option>Examinadora</option>
-  <option>Instructor</option>
-  <option>Oficializado</option>
-  <option>Culto Oficial</option>
-  <option>RJM</option>
-  <option>Alumnos</option>
-  </select>
+    
+    <div class="multiselect">
+      <div class="selectBox" id="abrir-filtros-igrejas">
+        <select><option id="texto-filtro-igrejas">Todas las Iglesias</option></select>
+        <div class="overSelect"></div>
+      </div>
+      <div id="checkboxes-igrejas" class="checkboxes-dropdown"></div>
+    </div>
+    
+    <div class="multiselect">
+      <div class="selectBox" id="abrir-filtros-instrumentos">
+        <select><option id="texto-filtro-instrumentos">Todos los Instrumentos</option></select>
+        <div class="overSelect"></div>
+      </div>
+      <div id="checkboxes-instrumentos" class="checkboxes-dropdown"></div>
+    </div>
+
+    <div class="multiselect">
+      <div class="selectBox" id="abrir-filtros-tipos">
+        <select><option id="texto-filtro-tipos">Todos los Tipos</option></select>
+        <div class="overSelect"></div>
+      </div>
+      <div id="checkboxes-tipos" class="checkboxes-dropdown"></div>
+    </div>
+
   </div>
 
   <div class="topo-acoes">
@@ -140,35 +166,40 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 const igrejas = ["Común Congregación","ALTO MERLO","BELLA VISTA","CABA","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
-const instrumentos = ["Instrumento","ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPA","TROMBÓN","BOMBARDINO","TUBA"];
+const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPA","TROMBÓN","BOMBARDINO","TUBA"];
+const tipos = ["Enc. Regional", "Encargado", "Examinadora", "Instructor", "Oficializado", "Culto Oficial", "RJM", "Alumnos"];
 
 const igrejaSelect = document.getElementById("igreja");
 const instrumento1 = document.getElementById("instrumento1");
 const instrumento2 = document.getElementById("instrumento2");
-const filtroIgreja = document.getElementById("filtroIgreja");
-const filtroInstrumento = document.getElementById("filtroInstrumento");
-const filtroTipo = document.getElementById("filtroTipo");
 const tabela = document.getElementById("tabela");
 const busca = document.getElementById("busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
 
+// Referências dos filtros múltiplos
+const containerIgrejas = document.getElementById("checkboxes-igrejas");
+const textoFiltroIgrejas = document.getElementById("texto-filtro-igrejas");
+
+const containerInstrumentos = document.getElementById("checkboxes-instrumentos");
+const textoFiltroInstrumentos = document.getElementById("texto-filtro-instrumentos");
+
+const containerTipos = document.getElementById("checkboxes-tipos");
+const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
+
 let lista = []; 
 let editKey = null; 
 let filtrados = []; 
 
-// Elementos de controle de tela
+// --- 🛡️ CONTROLE DE AUTENTICAÇÃO EM TEMPO REAL ---
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
 
-// --- 🛡️ CONTROLE DE AUTENTICAÇÃO EM TEMPO REAL ---
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // Usuário logado: mostra o sistema, esconde o login e escuta o banco
     telaLogin.style.display = "none";
     conteudoSistema.style.display = "block";
     
-    // Ativa o listener do banco de dados apenas após o login
     onValue(ref(database, 'musicos'), (snapshot) => {
       lista = [];
       snapshot.forEach((childSnapshot) => {
@@ -181,14 +212,12 @@ onAuthStateChanged(auth, (user) => {
     });
 
   } else {
-    // Usuário deslogado: esconde o sistema e mostra o login
     telaLogin.style.display = "block";
     conteudoSistema.style.display = "none";
     tabela.innerHTML = "";
   }
 });
 
-// Ação do Botão de Login
 document.getElementById("btn-entrar").addEventListener("click", () => {
   const email = document.getElementById("login-email").value;
   const senha = document.getElementById("login-senha").value;
@@ -200,7 +229,6 @@ document.getElementById("btn-entrar").addEventListener("click", () => {
     });
 });
 
-// Ação do Botão de Sair
 document.getElementById("btn-sair").addEventListener("click", () => {
   signOut(auth);
 });
@@ -208,14 +236,97 @@ document.getElementById("btn-sair").addEventListener("click", () => {
 // --- ⚙️ CONFIGURAÇÃO DE INTERFACE DOS MÚSICOS ---
 igrejas.forEach(i=>{
   igrejaSelect.innerHTML += `<option>${i}</option>`;
-  filtroIgreja.innerHTML += `<option>${i}</option>`;
 });
 
+// Configura selects de cadastro
+instrumento1.innerHTML = `<option value="">Instrumento</option>`;
+instrumento2.innerHTML = `<option value="">Instrumento</option>`;
 instrumentos.forEach(i=>{
   instrumento1.innerHTML += `<option>${i}</option>`;
   instrumento2.innerHTML += `<option>${i}</option>`;
-  filtroInstrumento.innerHTML += `<option>${i}</option>`;
 });
+
+// Gerar Checkboxes dinamicamente para os 3 filtros
+igrejas.forEach(ig => {
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
+  containerIgrejas.appendChild(label);
+});
+
+instrumentos.forEach(inst => {
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" value="${inst}" class="chk-instrumento"> ${inst}`;
+  containerInstrumentos.appendChild(label);
+});
+
+tipos.forEach(tp => {
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" value="${tp}" class="chk-tipo"> ${tp}`;
+  containerTipos.appendChild(label);
+});
+
+// --- CONTROLE DE ABERTURA/FECHAMENTO DOS DROPDOWNS ---
+function fecharTodosDropdowns() {
+  containerIgrejas.style.display = "none";
+  containerInstrumentos.style.display = "none";
+  containerTipos.style.display = "none";
+}
+
+document.getElementById("abrir-filtros-igrejas").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const visivel = containerIgrejas.style.display === "block";
+  fecharTodosDropdowns();
+  if (!visivel) containerIgrejas.style.display = "block";
+});
+
+document.getElementById("abrir-filtros-instrumentos").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const visivel = containerInstrumentos.style.display === "block";
+  fecharTodosDropdowns();
+  if (!visivel) containerInstrumentos.style.display = "block";
+});
+
+document.getElementById("abrir-filtros-tipos").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const visivel = containerTipos.style.display === "block";
+  fecharTodosDropdowns();
+  if (!visivel) containerTipos.style.display = "block";
+});
+
+document.addEventListener("click", fecharTodosDropdowns);
+containerIgrejas.addEventListener("click", (e) => { e.stopPropagation(); });
+containerInstrumentos.addEventListener("click", (e) => { e.stopPropagation(); });
+containerTipos.addEventListener("click", (e) => { e.stopPropagation(); });
+
+
+// --- ATUALIZAÇÃO DOS TEXTOS E DISPARO DO FILTRO ---
+function pegarValoresSelecionados(className) {
+  const checkboxes = document.querySelectorAll(`.${className}`);
+  let selecionados = [];
+  checkboxes.forEach(chk => {
+    if(chk.checked) { selecionados.push(chk.value); }
+  });
+  return selecionados;
+}
+
+containerIgrejas.addEventListener("change", () => {
+  const sel = pegarValoresSelecionados("chk-igreja");
+  textoFiltroIgrejas.textContent = sel.length === 0 ? "Todas las Iglesias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  atualizar();
+});
+
+containerInstrumentos.addEventListener("change", () => {
+  const sel = pegarValoresSelecionados("chk-instrumento");
+  textoFiltroInstrumentos.textContent = sel.length === 0 ? "Todos los Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
+  atualizar();
+});
+
+containerTipos.addEventListener("change", () => {
+  const sel = pegarValoresSelecionados("chk-tipo");
+  textoFiltroTipos.textContent = sel.length === 0 ? "Todos los Tipos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
+  atualizar();
+});
+
 
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
   instrumento2.style.display = "inline-block";
@@ -269,19 +380,28 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   instrumento2.style.display = "none";
 });
 
+// --- 📊 FUNÇÃO PRINCIPAL DE FILTRAGEM MULTI-SELEÇÃO ---
 function atualizar(){
   const texto = busca.value.toLowerCase();
-  const ig = filtroIgreja.value;
-  const inst = filtroInstrumento.value;
-  const tipoF = filtroTipo.value;
+  
+  const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
+  const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
+  const tiposSelecionados = pegarValoresSelecionados("chk-tipo");
 
   tabela.innerHTML = "";
 
   filtrados = lista
   .filter(m =>
-    (!ig || m.igreja === ig) &&
-    (!inst || m.instrumento.includes(inst)) &&
-    (!tipoF || m.tipo === tipoF) &&
+    // Filtro Múltiplo de Igrejas
+    (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
+    
+    // Filtro Múltiplo de Tipos
+    (tiposSelecionados.length === 0 || tiposSelecionados.includes(m.tipo)) &&
+    
+    // Filtro Múltiplo de Instrumentos (verifica se possui pelo menos um dos marcados)
+    (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento.includes(inst))) &&
+    
+    // Campo de busca por texto livre (nome ou instrumento)
     (
       m.nome.toLowerCase().includes(texto) ||
       m.instrumento.toLowerCase().includes(texto)
@@ -428,9 +548,6 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
 });
 
 busca.addEventListener("input", atualizar);
-filtroIgreja.addEventListener("change", atualizar);
-filtroInstrumento.addEventListener("change", atualizar);
-filtroTipo.addEventListener("change", atualizar);
 </script>
 
 </body>
