@@ -24,76 +24,98 @@ th { background:#0078D4; color:white; }
 .btn-excel:hover { background: #0b592e; }
 .btn-importar { background: #0078D4; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
 .btn-importar:hover { background: #005a9e; }
+.btn-logout { background: #a80000; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
+.btn-logout:hover { background: #7e0000; }
+
+/* Telas do Sistema */
+#tela-login { max-width: 350px; margin: 100px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); text-align: center; }
+#tela-login input { width: 90%; display: block; margin: 10px auto; padding: 10px; }
+#tela-login button { width: 96%; background: #0078D4; color: white; padding: 10px; font-weight: bold; margin-top: 10px; }
+#conteudo-sistema { display: none; } /* Escondido por padrão */
 </style>
 
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-
 <body>
 
-<img src="logo.png" class="logo-topo">
-<h1>Registro de Músicos CCA</h1>
-
-<input type="text" id="busca" placeholder="Buscar...">
-
-<div class="filtros">
-<select id="filtroIgreja"><option value="">Todas las Iglesias</option></select>
-<select id="filtroInstrumento"><option value="">Todos los Instrumentos</option></select>
-<select id="filtroTipo">
-<option value="">Todos los Tipos</option>
-<option>Oficializado</option>
-<option>Culto Oficial</option>
-<option>RJM</option>
-<option>Estudiante</option>
-</select>
+<div id="tela-login">
+  <h2>Iniciar Sesión</h2>
+  <p>Registro de Músicos CCA</p>
+  <input type="email" id="login-email" placeholder="Correo electrónico" required>
+  <input type="password" id="login-senha" placeholder="Contraseña" required>
+  <button type="button" id="btn-entrar">Entrar</button>
 </div>
 
-<div class="topo-acoes">
-  <div id="contador"><strong>Total: 0 músico(s)</strong></div>
-  <div class="botoes-acao">
-    <input type="file" id="inputImportar" accept=".csv" style="display: none;" onchange="importarExcel(event)">
-    <button type="button" class="btn-importar" onclick="document.getElementById('inputImportar').click()">📥 Importar Excel (.csv)</button>
-    <button type="button" class="btn-excel" onclick="exportarExcel()">📊 Exportar a Excel</button>
+<div id="conteudo-sistema">
+  <img src="logo.png" class="logo-topo">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h1>Registro de Músicos CCA</h1>
+    <button type="button" class="btn-logout" id="btn-sair">❌ Cerrar Sesión</button>
   </div>
+
+  <input type="text" id="busca" placeholder="Buscar...">
+
+  <div class="filtros">
+  <select id="filtroIgreja"><option value="">Todas las Iglesias</option></select>
+  <select id="filtroInstrumento"><option value="">Todos los Instrumentos</option></select>
+  <select id="filtroTipo">
+  <option value="">Todos los Tipos</option>
+  <option>Oficializado</option>
+  <option>Culto Oficial</option>
+  <option>RJM</option>
+  <option>Estudiante</option>
+  </select>
+  </div>
+
+  <div class="topo-acoes">
+    <div id="contador"><strong>Total: 0 músico(s)</strong></div>
+    <div class="botoes-acao">
+      <input type="file" id="inputImportar" accept=".csv" style="display: none;">
+      <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar Excel (.csv)</button>
+      <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar a Excel</button>
+    </div>
+  </div>
+
+  <form id="formMusico">
+  <select id="igreja" required></select>
+  <input type="text" id="nome" placeholder="Nombre" required>
+  <select id="instrumento1" required></select>
+  <select id="instrumento2" style="display:none;"></select>
+  <button type="button" class="plus-btn" id="btn-mais-instrumento">+</button>
+
+  <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
+
+  <select id="tipo" required>
+  <option value="">Seleccione</option>
+  <option>Oficializado</option>
+  <option>Culto Oficial</option>
+  <option>RJM</option>
+  <option>Estudiante</option>
+  </select>
+
+  <button type="submit">Guardar</button>
+  </form>
+
+  <table>
+  <thead>
+  <tr>
+  <th>Iglesia</th>
+  <th>Nombre</th>
+  <th>Instrumento</th>
+  <th>Tipo</th>
+  <th>Contacto</th>
+  <th>Acciones</th>
+  </tr>
+  </thead>
+  <tbody id="tabela"></tbody>
+  </table>
 </div>
 
-<form id="formMusico">
-<select id="igreja" required></select>
-<input type="text" id="nome" placeholder="Nombre" required>
-<select id="instrumento1" required></select>
-<select id="instrumento2" style="display:none;"></select>
-<button type="button" class="plus-btn" onclick="mostrarSegundo()">+</button>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-<input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
-
-<select id="tipo" required>
-<option value="">Seleccione</option>
-<option>Oficializado</option>
-<option>Culto Oficial</option>
-<option>RJM</option>
-<option>Estudiante</option>
-</select>
-
-<button type="submit">Guardar</button>
-</form>
-
-<table>
-<thead>
-<tr>
-<th>Iglesia</th>
-<th>Nombre</th>
-<th>Instrumento</th>
-<th>Tipo</th>
-<th>Contacto</th>
-<th>Acciones</th>
-</tr>
-</thead>
-<tbody id="tabela"></tbody>
-</table>
-
-<script>
-// ✅ SEU COFRE ONLINE CONFIGURADO COM SUCESSO
+// Suas credenciais do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDCTwZh5zlz_EBS3vjfyXKgBM-BibpMBnA",
   authDomain: "cadastro-musicos-cca-5d5fa.firebaseapp.com",
@@ -104,9 +126,10 @@ const firebaseConfig = {
   appId: "1:195805035055:web:48d0a486d25dc4e980a4da"
 };
 
-// Inicializando o Firebase com as suas credenciais
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+// Inicializando os serviços
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const auth = getAuth(app);
 
 const igrejas = ["Común Congregación","ALTO MERLO","BELLA VISTA","CABA","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
 const instrumentos = ["Instrumento","ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPA","TROMBÓN","BOMBARDINO","TUBA"];
@@ -124,8 +147,57 @@ const inputContato = document.getElementById("contato");
 
 let lista = []; 
 let editKey = null; 
-let filtrados = []; // Variable global para almacenar lo que está en pantalla
+let filtrados = []; 
 
+// Elementos de controle de tela
+const telaLogin = document.getElementById("tela-login");
+const conteudoSistema = document.getElementById("conteudo-sistema");
+
+// --- 🛡️ CONTROLE DE AUTENTICAÇÃO EM TEMPO REAL ---
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    // Usuário logado: mostra o sistema, esconde o login e escuta o banco
+    telaLogin.style.display = "none";
+    conteudoSistema.style.display = "block";
+    
+    // Ativa o listener do banco de dados apenas após o login
+    onValue(ref(database, 'musicos'), (snapshot) => {
+      lista = [];
+      snapshot.forEach((childSnapshot) => {
+        lista.push({
+          key: childSnapshot.key,
+          ...childSnapshot.val()
+        });
+      });
+      atualizar();
+    });
+
+  } else {
+    // Usuário deslogado: esconde o sistema e mostra o login
+    telaLogin.style.display = "block";
+    conteudoSistema.style.display = "none";
+    tabela.innerHTML = "";
+  }
+});
+
+// Ação do Botão de Login
+document.getElementById("btn-entrar").addEventListener("click", () => {
+  const email = document.getElementById("login-email").value;
+  const senha = document.getElementById("login-senha").value;
+
+  signInWithEmailAndPassword(auth, email, senha)
+    .catch((error) => {
+      alert("Error ao iniciar sesión: Verifique as credenciais.");
+      console.error(error);
+    });
+});
+
+// Ação do Botão de Sair
+document.getElementById("btn-sair").addEventListener("click", () => {
+  signOut(auth);
+});
+
+// --- ⚙️ CONFIGURAÇÃO DE INTERFACE DOS MÚSICOS ---
 igrejas.forEach(i=>{
   igrejaSelect.innerHTML += `<option>${i}</option>`;
   filtroIgreja.innerHTML += `<option>${i}</option>`;
@@ -137,9 +209,9 @@ instrumentos.forEach(i=>{
   filtroInstrumento.innerHTML += `<option>${i}</option>`;
 });
 
-function mostrarSegundo() {
+document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
   instrumento2.style.display = "inline-block";
-}
+});
 
 inputContato.addEventListener("input", function (e) {
   let value = e.target.value.replace(/\D/g, '');
@@ -153,6 +225,7 @@ inputContato.addEventListener("input", function (e) {
   e.target.value = formatted;
 });
 
+// Salvar / Editar Músico
 document.getElementById("formMusico").addEventListener("submit", function(e){
   e.preventDefault();
 
@@ -166,39 +239,26 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
 
   const dados = {
     igreja: igrejaSelect.value,
-    nome: nome.value,
+    nome: document.getElementById("nome").value,
     instrumento: instrumentosFinal.join(", "),
-    tipo: tipo.value,
-    contato: contato.value
+    tipo: document.getElementById("tipo").value,
+    contato: inputContato.value
   };
 
   if (editKey === null) {
-    // Validación también al guardar manualmente desde el formulario
     const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
     if (existe) {
       alert("Este músico ya se encuentra registrado en esta iglesia.");
       return;
     }
-    database.ref('musicos').push(dados);
+    push(ref(database, 'musicos'), dados);
   } else {
-    database.ref('musicos/' + editKey).set(dados);
+    set(ref(database, 'musicos/' + editKey), dados);
     editKey = null;
   }
 
   document.getElementById("formMusico").reset();
   instrumento2.style.display = "none";
-});
-
-// ✅ RECEBER E ATUALIZAR DADOS EM TEMPO REAL
-database.ref('musicos').on('value', (snapshot) => {
-  lista = [];
-  snapshot.forEach((childSnapshot) => {
-    lista.push({
-      key: childSnapshot.key,
-      ...childSnapshot.val()
-    });
-  });
-  atualizar();
 });
 
 function atualizar(){
@@ -222,18 +282,23 @@ function atualizar(){
   .sort((a, b) => a.nome.localeCompare(b.nome));
 
   filtrados.forEach((m)=>{
-    tabela.innerHTML += `
-    <tr>
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
       <td>${m.igreja}</td>
       <td>${m.nome}</td>
       <td>${m.instrumento}</td>
       <td>${m.tipo}</td>
       <td>${m.contato}</td>
       <td>
-        <button onclick="editar('${m.key}')">✏️</button>
-        <button onclick="excluir('${m.key}')">🗑️</button>
+        <button class="btn-editar">✏️</button>
+        <button class="btn-excluir">🗑️</button>
       </td>
-    </tr>`;
+    `;
+    
+    tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
+    tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
+    
+    tabela.appendChild(tr);
   });
 
   contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s)</strong>`;
@@ -244,9 +309,9 @@ function editar(key){
   if(!m) return;
 
   igrejaSelect.value = m.igreja;
-  nome.value = m.nome;
-  tipo.value = m.tipo;
-  contato.value = m.contato;
+  document.getElementById("nome").value = m.nome;
+  document.getElementById("tipo").value = m.tipo;
+  inputContato.value = m.contato;
 
   const inst = m.instrumento.split(", ");
   instrumento1.value = inst[0];
@@ -263,44 +328,38 @@ function editar(key){
 
 function excluir(key){
   if(confirm("¿Realmente desea eliminar a este músico?")) {
-    database.ref('musicos/' + key).remove();
+    remove(ref(database, 'musicos/' + key));
   }
 }
 
-function exportarExcel() {
+// Exportar e Importar Excel
+document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) {
     alert("No hay datos para exportar.");
     return;
   }
 
   let csvContent = "Iglesia;Nombre;Instrumento;Tipo;Contacto\n";
-
   filtrados.forEach(m => {
-    let fila = [
-      m.igreja,
-      m.nome,
-      m.instrumento,
-      m.tipo,
-      m.contato
-    ].join(";");
-    
+    let fila = [m.igreja, m.nome, m.instrumento, m.tipo, m.contato].join(";");
     csvContent += fila + "\n";
   });
 
   const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  
   const link = document.createElement("a");
   link.setAttribute("href", url);
   link.setAttribute("download", "Registro_de_Musicos_CCA.csv");
-  link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-}
+});
 
-// Nueva función optimizada para evitar importaciones duplicadas
-function importarExcel(event) {
+document.getElementById("btn-clique-importar").addEventListener("click", () => {
+  document.getElementById("inputImportar").click();
+});
+
+document.getElementById("inputImportar").addEventListener("change", (event) => {
   const archivo = event.target.files[0];
   if (!archivo) return;
 
@@ -327,7 +386,6 @@ function importarExcel(event) {
         const nomeImportar = campos[1].trim();
         const igrejaImportar = campos[0].trim();
 
-        // 🛡️ VALIDACIÓN DE DUPLICADOS: Compara con la lista local actual de Firebase
         const yaExiste = lista.some(m => 
           m.nome.toLowerCase() === nomeImportar.toLowerCase() && 
           m.igreja.toLowerCase() === igrejaImportar.toLowerCase()
@@ -335,7 +393,7 @@ function importarExcel(event) {
 
         if (yaExiste) {
           registrosDuplicados++;
-          continue; // Si ya existe, salta esta fila y va a la siguiente
+          continue;
         }
 
         const dados = {
@@ -346,23 +404,20 @@ function importarExcel(event) {
           contato: campos[4].trim()
         };
 
-        database.ref('musicos').push(dados);
+        push(ref(database, 'musicos'), dados);
         registrosImportados++;
       }
     }
 
-    // Mensaje informativo final detallado
     if (registrosDuplicados > 0) {
-      alert(`Importación finalizada:\n✅ ${registrosImportados} nuevos músicos agregados.\n⚠️ ${registrosDuplicados} registros fueron ignorados por estar duplicados.`);
+      alert(`Importación finalizada:\n✅ ${registrosImportados} novos músicos agregados.\n⚠️ ${registrosDuplicados} registros foram ignorados por estar duplicados.`);
     } else {
       alert(`¡Éxito! Se importaron ${registrosImportados} músicos correctamente.`);
     }
-    
     event.target.value = '';
   };
-
   lector.readAsText(archivo, 'UTF-8');
-}
+});
 
 busca.addEventListener("input", atualizar);
 filtroIgreja.addEventListener("change", atualizar);
