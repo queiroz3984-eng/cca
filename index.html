@@ -44,6 +44,12 @@ th { background:#0078D4; color:white; }
 .checkboxes-dropdown label { display: block; padding: 6px 12px; cursor: pointer; color: #333; text-align: left; }
 .checkboxes-dropdown label:hover { background-color: #0078D4; color: white; }
 .checkboxes-dropdown input { width: auto; margin-right: 10px; vertical-align: middle; }
+
+/* Clase de alerta para destacar filas con datos divergentes o errores */
+tr.linha-erro {
+  background-color: #ffcccc !important;
+  color: #a30000;
+}
 </style>
 
 </head>
@@ -365,6 +371,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     }
     push(ref(database, 'musicos'), dados);
   } else {
+    // Al guardar o editar manualmente, sobreescribimos quitando el flag "invalid" (asumiendo corrección)
     set(ref(database, 'musicos/' + editKey), dados);
     editKey = null;
   }
@@ -404,6 +411,12 @@ function atualizar(){
 
   filtrados.forEach((m)=>{
     const tr = document.createElement("tr");
+    
+    // Si el registro posee errores o diferencias de escritura, añade la clase CSS para marcarlo en rojo
+    if (m.invalid) {
+      tr.classList.add("linha-erro");
+    }
+
     tr.innerHTML = `
       <td>${m.igreja}</td>
       <td>${m.nome}</td>
@@ -496,6 +509,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
 
     let registrosImportados = 0;
     let registrosDuplicados = 0;
+    let registrosComErro = 0;
 
     for (let i = 1; i < lineas.length; i++) {
       const linea = lineas[i].trim();
@@ -504,8 +518,11 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       const campos = linea.split(";");
 
       if (campos.length >= 5) {
-        const nomeImportar = campos[1].trim();
         const igrejaImportar = campos[0].trim();
+        const nomeImportar = campos[1].trim();
+        const instrumentoImportar = campos[2].trim();
+        const tipoImportar = campos[3].trim();
+        const contatoImportar = campos[4].trim();
 
         const yaExiste = lista.some(m => 
           m.nome.toLowerCase() === nomeImportar.toLowerCase() && 
@@ -517,20 +534,36 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
           continue;
         }
 
-        const dados = {
+        // VALIDACIÓN ESTRICTA: Compara contra los arrays del sistema (sensible a acentos y mayúsculas)
+        const igrejaValida = igrejas.includes(igrejaImportar);
+        const tipoValido = tipos.includes(tipoImportar);
+        
+        // Maneja si vienen múltiples instrumentos en la celda separados por coma
+        const instsImportados = instrumentoImportar.split(",").map(x => x.trim());
+        const instrumentosValidos = instsImportados.every(inst => instrumentos.includes(inst));
+
+        let dados = {
           igreja: igrejaImportar,
           nome: nomeImportar,
-          instrumento: campos[2].trim(),
-          tipo: campos[3].trim(),
-          contato: campos[4].trim()
+          instrumento: instrumentoImportar,
+          tipo: tipoImportar,
+          contato: contatoImportar
         };
+
+        // Si hay divergencias, le inyectamos la propiedad invalid
+        if (!igrejaValida || !tipoValido || !instrumentosValidos) {
+          dados.invalid = true;
+          registrosComErro++;
+        }
 
         push(ref(database, 'musicos'), dados);
         registrosImportados++;
       }
     }
 
-    if (registrosDuplicados > 0) {
+    if (registrosComErro > 0) {
+      alert(`Importación finalizada:\n✅ ${registrosImportados} músicos agregados.\n⚠️ ${registrosComErro} registros contienen divergencias (ej: acentos incorrectos como 'VIOLIN') y están resaltados en rojo.\n🛑 ${registrosDuplicados} registros duplicados ignorados.`);
+    } else if (registrosDuplicados > 0) {
       alert(`Importación finalizada:\n✅ ${registrosImportados} novos músicos agregados.\n⚠️ ${registrosDuplicados} registros foram ignorados por estar duplicados.`);
     } else {
       alert(`¡Éxito! Se importaron ${registrosImportados} músicos correctamente.`);
