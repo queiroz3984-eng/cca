@@ -16,9 +16,6 @@ th { background:#0078D4; color:white; }
 #busca { width:250px; padding:10px; }
 .logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
 
-/* Posicionamento do Botão Cerrar Sesión no Topo Esquerdo */
-.topo-esquerda-logout { position: absolute; top: 210px; right: 30px; }
-
 /* Contenedor de acciones superiores y diseño de los botones */
 .topo-acoes { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
 .botoes-acao { display: flex; gap: 10px; }
@@ -26,8 +23,10 @@ th { background:#0078D4; color:white; }
 .btn-excel:hover { background: #0b592e; }
 .btn-importar { background: #0078D4; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
 .btn-importar:hover { background: #005a9e; }
-.btn-logout { background: #a80000; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
-.btn-logout:hover { background: #7e0000; }
+
+/* Novo botão de excluir tudo */
+.btn-excluir-tudo { background: #d11a2a; color: white; font-weight: bold; padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; }
+.btn-excluir-tudo:hover { background: #9c101c; }
 
 /* Telas do Sistema */
 #tela-login { max-width: 350px; margin: 100px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); text-align: center; }
@@ -59,9 +58,6 @@ th { background:#0078D4; color:white; }
 </div>
 
 <div id="conteudo-sistema">
-  <div class="topo-esquerda-logout">
-    <button type="button" class="btn-logout" id="btn-sair">❌ Cerrar Sesión</button>
-  </div>
 
   <img src="logo.png" class="logo-topo">
   <h1>Registro de Músicos CCA</h1>
@@ -100,6 +96,7 @@ th { background:#0078D4; color:white; }
     <div id="contador"><strong>Total: 0 músico(s)</strong></div>
     <div class="botoes-acao">
       <input type="file" id="inputImportar" accept=".csv" style="display: none;">
+      <button type="button" class="btn-excluir-tudo" id="btn-excluir-tudo">🚨 Eliminar Todo el Registro</button>
       <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar Excel (.csv)</button>
       <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar a Excel</button>
     </div>
@@ -147,7 +144,7 @@ th { background:#0078D4; color:white; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Suas credenciais do Firebase
 const firebaseConfig = {
@@ -227,10 +224,6 @@ document.getElementById("btn-entrar").addEventListener("click", () => {
       alert("Error ao iniciar sesión: Verifique as credenciais.");
       console.error(error);
     });
-});
-
-document.getElementById("btn-sair").addEventListener("click", () => {
-  signOut(auth);
 });
 
 // --- ⚙️ CONFIGURAÇÃO DE INTERFACE DOS MÚSICOS ---
@@ -317,7 +310,7 @@ containerIgrejas.addEventListener("change", () => {
 
 containerInstrumentos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-instrumento");
-  textoFiltroInstrumentos.textContent = sel.length === 0 ? "Todos los Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
+  textoFiltroInstrumentos.textContent = sel.length === 0 ? "Todos los Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Selecionados`);
   atualizar();
 });
 
@@ -455,7 +448,7 @@ function editar(key){
 }
 
 function excluir(key){
-  if(confirm("¿Realmente desea eliminar a este músico?")) {
+  if(confirm("¿Realmente deseja eliminar a este músico?")) {
     remove(ref(database, 'musicos/' + key));
   }
 }
@@ -545,6 +538,56 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     event.target.value = '';
   };
   lector.readAsText(archivo, 'UTF-8');
+});
+
+// --- 🚨 FUNÇÃO PARA BORRAR TODO EL REGISTRO CON VALIDACIÓN DE CONTRASEÑA ---
+document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
+  if (lista.length === 0) {
+    alert("No hay ningún registro para eliminar.");
+    return;
+  }
+
+  // Confirmación inicial preventiva
+  if (!confirm("⚠️ ATENCIÓN: Esta acción eliminará por completo a TODOS los músicos del sistema. ¿Realmente desea continuar?")) {
+    return;
+  }
+
+  // Solicitar contraseña para proceder
+  const senhaInformada = prompt("Por seguridad, introduzca su contraseña de inicio de sesión:");
+  
+  if (!senhaInformada) {
+    alert("Acción cancelada. La contraseña es obligatoria.");
+    return;
+  }
+
+  const usuarioAtual = auth.currentUser;
+
+  if (usuarioAtual && usuarioAtual.email) {
+    // Generar la credencial de reautenticación
+    const credencial = EmailAuthProvider.credential(usuarioAtual.email, senhaInformada);
+
+    // Reautenticar al usuario para asegurar la sesión
+    reauthenticateWithCredential(usuarioAtual, credencial)
+      .then(() => {
+        // Confirmación final tras validar la contraseña correctamente
+        if (confirm("Confirmación final: ¿Eliminar la base de datos completa ahora?")) {
+          remove(ref(database, 'musicos'))
+            .then(() => {
+              alert("💥 Todos los registros han sido eliminados con éxito de la base de datos.");
+            })
+            .catch((error) => {
+              alert("Error al intentar limpiar la base de datos.");
+              console.error(error);
+            });
+        }
+      })
+      .catch((error) => {
+        alert("❌ Contraseña incorrecta o inválida. Acceso denegado para borrar los datos.");
+        console.error(error);
+      });
+  } else {
+    alert("Error de sesión: No se detectó ningún usuario activo.");
+  }
 });
 
 busca.addEventListener("input", atualizar);
