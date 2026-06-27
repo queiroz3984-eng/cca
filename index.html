@@ -60,6 +60,10 @@ tr.linha-erro {
   background-color: #ffcccc !important;
   color: #a30000;
 }
+
+/* Divs para agrupar os instrumentos secundários lado a lado ou em bloco */
+.bloco-instrumento { display: flex; flex-direction: column; gap: 4px; }
+.par-campos { display: inline-block; vertical-align: middle; }
 </style>
 
 </head>
@@ -122,27 +126,28 @@ tr.linha-erro {
   </div>
 
   <form id="formMusico">
-  <select id="igreja" required></select>
-  <input type="text" id="nome" placeholder="Nombre" required>
-  <select id="instrumento1" required></select>
-  <select id="instrumento2" style="display:none;"></select>
-  <button type="button" class="plus-btn" id="btn-mais-instrumento">+</button>
+    <select id="igreja" required></select>
+    <input type="text" id="nome" placeholder="Nombre" required>
+    
+    <div class="par-campos">
+      <select id="instrumento1" required></select>
+      <select id="tipo" required>
+        <option value="">Tipo 1</option>
+      </select>
+    </div>
 
-  <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
+    <div class="par-campos" id="container-segundo-instrumento" style="display:none;">
+      <select id="instrumento2"></select>
+      <select id="tipo2">
+        <option value="">Tipo 2</option>
+      </select>
+    </div>
 
-  <select id="tipo" required>
-  <option value="">Seleccione</option>
-  <option>ENC. REGIONAL</option>
-  <option>ENCARGADO</option>
-  <option>EXAMINADORA</option>
-  <option>INSTRUCTOR</option>
-  <option>OFICIALIZADO</option>
-  <option>CULTO OFICIAL</option>
-  <option>RJM / ENSAYO</option>
-  <option>ALUMNO</option>
-  </select>
+    <button type="button" class="plus-btn" id="btn-mais-instrumento">+</button>
 
-  <button type="submit">Guardar</button>
+    <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
+
+    <button type="submit">Guardar</button>
   </form>
 
   <table>
@@ -165,7 +170,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Suas credenciais do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDCTwZh5zlz_EBS3vjfyXKgBM-BibpMBnA",
   authDomain: "cadastro-musicos-cca-5d5fa.firebaseapp.com",
@@ -176,7 +180,6 @@ const firebaseConfig = {
   appId: "1:195805035055:web:48d0a486d25dc4e980a4da"
 };
 
-// Inicializando os serviços
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
@@ -188,19 +191,20 @@ const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICI
 const igrejaSelect = document.getElementById("igreja");
 const instrumento1 = document.getElementById("instrumento1");
 const instrumento2 = document.getElementById("instrumento2");
+const tipo1Select = document.getElementById("tipo");
+const tipo2Select = document.getElementById("tipo2");
+const containerSegundoInstrumento = document.getElementById("container-segundo-instrumento");
+
 const tabela = document.getElementById("tabela");
 const busca = document.getElementById("busca");
 const btnLimparBusca = document.getElementById("btn-limpar-busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
 
-// Referências dos filtros múltiplos
 const containerIgrejas = document.getElementById("checkboxes-igrejas");
 const textoFiltroIgrejas = document.getElementById("texto-filtro-igrejas");
-
 const containerInstrumentos = document.getElementById("checkboxes-instrumentos");
 const textoFiltroInstrumentos = document.getElementById("texto-filtro-instrumentos");
-
 const containerTipos = document.getElementById("checkboxes-tipos");
 const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
 
@@ -208,11 +212,9 @@ let lista = [];
 let editKey = null; 
 let filtrados = []; 
 
-// Controle de Ordenação Dinâmica
-let colunaOrdenada = "nome"; // Coluna padrão inicial
-let ordemCrescente = true;   // Direção inicial
+let colunaOrdenada = "nome"; 
+let ordemCrescente = true;   
 
-// --- 🛡️ CONTROLE DE AUTENTICAÇÃO EM TEMPO REAL ---
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
 
@@ -231,7 +233,6 @@ onAuthStateChanged(auth, (user) => {
       });
       atualizar();
     });
-
   } else {
     telaLogin.style.display = "block";
     conteudoSistema.style.display = "none";
@@ -242,78 +243,58 @@ onAuthStateChanged(auth, (user) => {
 document.getElementById("btn-entrar").addEventListener("click", () => {
   const email = document.getElementById("login-email").value;
   const senha = document.getElementById("login-senha").value;
-
-  signInWithEmailAndPassword(auth, email, senha)
-    .catch((error) => {
-      alert("Error ao iniciar sesión: Verifique as credenciais.");
-      console.error(error);
-    });
+  signInWithEmailAndPassword(auth, email, senha).catch((error) => {
+    alert("Error ao iniciar sesión: Verifique as credenciais.");
+    console.error(error);
+  });
 });
 
-// --- ⚙️ CONFIGURAÇÃO DE INTERFACE DOS MÚSICOS ---
-igrejas.forEach(i=>{
-  igrejaSelect.innerHTML += `<option>${i}</option>`;
-});
+igrejas.forEach(i=>{ igrejaSelect.innerHTML += `<option>${i}</option>`; });
 
-// Configura selects de cadastro
-instrumento1.innerHTML = `<option value="">Instrumento</option>`;
-instrumento2.innerHTML = `<option value="">Instrumento</option>`;
+instrumento1.innerHTML = `<option value="">Instrumento 1</option>`;
+instrumento2.innerHTML = `<option value="">Instrumento 2 (Opcional)</option>`;
 instrumentos.forEach(i=>{
   instrumento1.innerHTML += `<option>${i}</option>`;
   instrumento2.innerHTML += `<option>${i}</option>`;
 });
 
+// Popula os seletores de Tipo 1 e Tipo 2
+tipos.forEach(t => {
+  tipo1Select.innerHTML += `<option>${t}</option>`;
+  tipo2Select.innerHTML += `<option>${t}</option>`;
+});
 
-// ALTERADO: Injeta apenas um botão alternável no topo de cada container de checkboxes
-containerIgrejas.innerHTML = `
-  <div class="dropdown-acoes-topo">
-    <a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a>
-  </div>`;
-containerInstrumentos.innerHTML = `
-  <div class="dropdown-acoes-topo">
-    <a href="#" class="btn-alternar-todos" id="btn-toggle-instrumentos">Seleccionar Todos</a>
-  </div>`;
-containerTipos.innerHTML = `
-  <div class="dropdown-acoes-topo">
-    <a href="#" class="btn-alternar-todos" id="btn-toggle-tipos">Seleccionar Todos</a>
-  </div>`;
+containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
+containerInstrumentos.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-instrumentos">Seleccionar Todos</a></div>`;
+containerTipos.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-tipos">Seleccionar Todos</a></div>`;
 
-// Gerar Checkboxes dinamicamente para os 3 filtros
 igrejas.forEach(ig => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
   containerIgrejas.appendChild(label);
 });
-
 instrumentos.forEach(inst => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${inst}" class="chk-instrumento"> ${inst}`;
   containerInstrumentos.appendChild(label);
 });
-
 tipos.forEach(tp => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${tp}" class="chk-tipo"> ${tp}`;
   containerTipos.appendChild(label);
 });
 
-
-// ALTERADO: Função genérica para gerenciar o clique do botão único (liga/desliga)
 function gerenciarBotaoAlternar(idBotao, classeCheckboxes, textoPadrao, textoPlural, elementoTextoFiltro) {
   const botao = document.getElementById(idBotao);
-  
   botao.addEventListener("click", (e) => {
     e.preventDefault(); e.stopPropagation();
     const chks = document.querySelectorAll(`.${classeCheckboxes}`);
     const marcados = document.querySelectorAll(`.${classeCheckboxes}:checked`);
-    
-    // Se nem todos estão marcados, o clique irá MARCAR TODOS
     if (marcados.length < chks.length) {
       chks.forEach(chk => chk.checked = true);
       botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Desmarcar Todos" : "Desmarcar Todas";
       elementoTextoFiltro.textContent = `${chks.length} Seleccionadas`;
     } else {
-      // Se todos já estavam marcados, o clique irá DESMARCAR TODOS
       chks.forEach(chk => chk.checked = false);
       botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Seleccionar Todos" : "Seleccionar Todas";
       elementoTextoFiltro.textContent = textoPadrao;
@@ -322,14 +303,12 @@ function gerenciarBotaoAlternar(idBotao, classeCheckboxes, textoPadrao, textoPlu
   });
 }
 
-// ALTERADO: Função auxiliar para monitorar mudanças manuais nos checkboxes e atualizar o texto do botão de cabeçalho
 function monitorarMudancasCheckboxes(idBotao, classeCheckboxes, textoPlural) {
   const checkboxes = document.querySelectorAll(`.${classeCheckboxes}`);
   checkboxes.forEach(chk => {
     chk.addEventListener("change", () => {
       const botao = document.getElementById(idBotao);
       const marcados = document.querySelectorAll(`.${classeCheckboxes}:checked`);
-      
       if (marcados.length === checkboxes.length) {
         botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Desmarcar Todos" : "Desmarcar Todas";
       } else {
@@ -339,7 +318,6 @@ function monitorarMudancasCheckboxes(idBotao, classeCheckboxes, textoPlural) {
   });
 }
 
-// ALTERADO: Ativa a lógica do botão alternável único para cada um dos 3 filtros
 gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
 gerenciarBotaoAlternar("btn-toggle-instrumentos", "chk-instrumento", "Todos los Instrumentos", "Instrumentos", textoFiltroInstrumentos);
 gerenciarBotaoAlternar("btn-toggle-tipos", "chk-tipo", "Todos los Tipos", "Tipos", textoFiltroTipos);
@@ -348,8 +326,6 @@ monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
 monitorarMudancasCheckboxes("btn-toggle-instrumentos", "chk-instrumento", "Instrumentos");
 monitorarMudancasCheckboxes("btn-toggle-tipos", "chk-tipo", "Tipos");
 
-
-// --- CONTROLE DE ABERTURA/FECHAMENTO DOS DROPDOWNS ---
 function fecharTodosDropdowns() {
   containerIgrejas.style.display = "none";
   containerInstrumentos.style.display = "none";
@@ -357,24 +333,13 @@ function fecharTodosDropdowns() {
 }
 
 document.getElementById("abrir-filtros-igrejas").addEventListener("click", (e) => {
-  e.stopPropagation();
-  const visivel = containerIgrejas.style.display === "block";
-  fecharTodosDropdowns();
-  if (!visivel) containerIgrejas.style.display = "block";
+  e.stopPropagation(); const visivel = containerIgrejas.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerIgrejas.style.display = "block";
 });
-
 document.getElementById("abrir-filtros-instrumentos").addEventListener("click", (e) => {
-  e.stopPropagation();
-  const visivel = containerInstrumentos.style.display === "block";
-  fecharTodosDropdowns();
-  if (!visivel) containerInstrumentos.style.display = "block";
+  e.stopPropagation(); const visivel = containerInstrumentos.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerInstrumentos.style.display = "block";
 });
-
 document.getElementById("abrir-filtros-tipos").addEventListener("click", (e) => {
-  e.stopPropagation();
-  const visivel = containerTipos.style.display === "block";
-  fecharTodosDropdowns();
-  if (!visivel) containerTipos.style.display = "block";
+  e.stopPropagation(); const visivel = containerTipos.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerTipos.style.display = "block";
 });
 
 document.addEventListener("click", fecharTodosDropdowns);
@@ -382,14 +347,10 @@ containerIgrejas.addEventListener("click", (e) => { e.stopPropagation(); });
 containerInstrumentos.addEventListener("click", (e) => { e.stopPropagation(); });
 containerTipos.addEventListener("click", (e) => { e.stopPropagation(); });
 
-
-// --- ATUALIZAÇÃO DOS TEXTOS E DISPARO DO FILTRO ---
 function pegarValoresSelecionados(className) {
   const checkboxes = document.querySelectorAll(`.${className}`);
   let selecionados = [];
-  checkboxes.forEach(chk => {
-    if(chk.checked) { selecionados.push(chk.value); }
-  });
+  checkboxes.forEach(chk => { if(chk.checked) { selecionados.push(chk.value); } });
   return selecionados;
 }
 
@@ -398,25 +359,21 @@ containerIgrejas.addEventListener("change", () => {
   textoFiltroIgrejas.textContent = sel.length === 0 ? "Todas las Iglesias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
   atualizar();
 });
-
 containerInstrumentos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-instrumento");
   textoFiltroInstrumentos.textContent = sel.length === 0 ? "Todos los Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Selecionados`);
   atualizar();
 });
-
 containerTipos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-tipo");
   textoFiltroTipos.textContent = sel.length === 0 ? "Todos los Tipos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
   atualizar();
 });
 
-
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
-  instrumento2.style.display = "inline-block";
+  containerSegundoInstrumento.style.display = "inline-block";
 });
 
-// Função auxiliar para aplicar a máscara de contato nos inputs de forma independente (útil para inline)
 function aplicarMascaraContato(input) {
   input.addEventListener("input", function (e) {
     let value = e.target.value.replace(/\D/g, '');
@@ -433,41 +390,46 @@ function aplicarMascaraContato(input) {
 
 aplicarMascaraContato(inputContato);
 
-// Salvar / Editar Músico
+// Salvar / Adicionar Músico Manualmente
 document.getElementById("formMusico").addEventListener("submit", function(e){
   e.preventDefault();
 
   const inst1 = instrumento1.value;
+  const tp1 = tipo1Select.value;
   const inst2 = instrumento2.value;
-  let instrumentosFinal = [inst1];
+  const tp2 = tipo2Select.value;
 
-  if (instrumento2.style.display !== "none" && inst2 && inst2 !== inst1) {
+  let instrumentosFinal = [inst1];
+  let tiposFinal = [tp1];
+
+  // Adiciona o segundo se estiver visível e preenchido
+  if (containerSegundoInstrumento.style.display !== "none" && inst2) {
     instrumentosFinal.push(inst2);
+    tiposFinal.push(tp2 || tp1); // Usa o tipo 1 caso o tipo 2 esteja em branco
   }
 
-  // AJUSTADO: Converte o nome digitado manualmente para caixa alta (.toUpperCase())
   const nomeEmCaixaAlta = document.getElementById("nome").value.trim().toUpperCase();
 
   const dados = {
     igreja: igrejaSelect.value,
     nome: nomeEmCaixaAlta,
     instrumento: instrumentosFinal.join(", "),
-    tipo: document.getElementById("tipo").value,
+    tipo: tiposFinal.join(", "), // Guarda os tipos separados por vírgula na mesma ordem
     contato: inputContato.value
   };
 
   const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
   if (existe) {
-    alert("Este músico ya se encuentra registrado in esta iglesia.");
+    alert("Este músico ya se encuentra registrado en esta iglesia.");
     return;
   }
   push(ref(database, 'musicos'), dados);
 
   document.getElementById("formMusico").reset();
-  instrumento2.style.display = "none";
+  containerSegundoInstrumento.style.display = "none";
 });
 
-// --- 📊 FUNÇÃO PRINCIPAL DE FILTRAGEM MULTI-SELEÇÃO ---
+// --- 📊 FUNÇÃO PRINCIPAL DE FILTRAGEM E ATUALIZAÇÃO ---
 function atualizar(){
   const texto = busca.value.toLowerCase();
   
@@ -479,62 +441,62 @@ function atualizar(){
 
   filtrados = lista
   .filter(m =>
-    // Filtro Múltiplo de Igrejas
     (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-    
-    // Filtro Múltiplo de Tipos
-    (tiposSelecionadas.length === 0 || tiposSelecionadas.includes(m.tipo)) &&
-    
-    // Filtro Múltiplo de Instrumentos (verifica se possui pelo menos um dos marcados)
-    (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento.includes(inst))) &&
-    
-    // Campo de busca por texto livre (nome ou instrumento)
+    (tiposSelecionadas.length === 0 || tiposSelecionadas.some(t => m.tipo && m.tipo.includes(t))) &&
+    (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento && m.instrumento.includes(inst))) &&
     (
       m.nome.toLowerCase().includes(texto) ||
-      m.instrumento.toLowerCase().includes(texto)
+      (m.instrumento && m.instrumento.toLowerCase().includes(texto))
     )
   )
-  // Ordenación Alfabética Dinámica
   .sort((a, b) => {
     let valorA = a[colunaOrdenada] ? a[colunaOrdenada].toLowerCase() : "";
     let valorB = b[colunaOrdenada] ? b[colunaOrdenada].toLowerCase() : "";
-    
-    if (ordemCrescente) {
-      return valorA.localeCompare(valorB);
-    } else {
-      return valorB.localeCompare(valorA);
-    }
+    return ordemCrescente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
   });
 
   filtrados.forEach((m)=>{
     const tr = document.createElement("tr");
     
-    // Si el registro posee errores o diferencias de escritura, añade la clase CSS para marcarlo en rojo
     if (m.invalid) {
       tr.classList.add("linha-erro");
     }
 
-    // Si coincide con la clave en edição, renderizamos campos de entrada en lugar de texto plano
+    const insts = m.instrumento ? m.instrumento.split(", ") : [""];
+    const tps = m.tipo ? m.tipo.split(", ") : [""];
+
+    // Se estiver em modo edição inline
     if (editKey === m.key) {
       const optionsIgrejas = igrejas.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
-      const optionsTipos = tipos.map(t => `<option value="${t}" ${t === m.tipo ? 'selected' : ''}>${t}</option>`).join('');
       
-      const insts = m.instrumento.split(", ");
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsInst2 = instrumentos.map(i => `<option value="${i}" ${i === insts[1] ? 'selected' : ''}>${i}</option>`).join('');
+      
+      const optionsTipo1 = tipos.map(t => `<option value="${t}" ${t === tps[0] ? 'selected' : ''}>${t}</option>`).join('');
+      const optionsTipo2 = tipos.map(t => `<option value="${t}" ${t === tps[1] ? 'selected' : ''}>${t}</option>`).join('');
 
       tr.innerHTML = `
         <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
         <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
         <td>
-          <select class="edit-inst1" style="width:100%; padding:4px; margin-bottom:2px;">${optionsInst1}</select>
-          <select class="edit-inst2" style="width:100%; padding:4px; ${insts[1] ? '' : 'display:none;'}">
-            <option value="">Segundo Instrumento (Opcional)</option>
-            ${optionsInst2}
-          </select>
-          <button type="button" class="btn-edit-mais" style="padding:2px 6px; font-size:11px; ${insts[1] ? 'display:none;' : ''}">+</button>
+          <div class="bloco-instrumento">
+            <select class="edit-inst1" style="width:100%; padding:4px;">${optionsInst1}</select>
+            <select class="edit-inst2" style="width:100%; padding:4px; ${insts[1] ? '' : 'display:none;'}">
+              <option value="">Segundo Instrumento (Opcional)</option>
+              ${optionsInst2}
+            </select>
+            <button type="button" class="btn-edit-mais" style="padding:2px 6px; font-size:11px; ${insts[1] ? 'display:none;' : ''}">+</button>
+          </div>
         </td>
-        <td><select class="edit-tipo" style="width:100%; padding:4px;">${optionsTipos}</select></td>
+        <td>
+          <div class="bloco-instrumento">
+            <select class="edit-tipo1" style="width:100%; padding:4px;">${optionsTipo1}</select>
+            <select class="edit-tipo2" style="width:100%; padding:4px; ${insts[1] ? '' : 'display:none;'}">
+              <option value="">Segundo Tipo (Opcional)</option>
+              ${optionsTipo2}
+            </select>
+          </div>
+        </td>
         <td><input type="text" class="edit-contato" value="${m.contato}" style="width:90%; padding:4px;" required></td>
         <td>
           <button class="btn-salvar-inline" title="Guardar">💾</button>
@@ -544,23 +506,36 @@ function atualizar(){
 
       const btnMais = tr.querySelector(".btn-edit-mais");
       const selectInst2 = tr.querySelector(".edit-inst2");
+      const selectTipo2 = tr.querySelector(".edit-tipo2");
+      
       btnMais.addEventListener("click", () => {
         selectInst2.style.display = "block";
+        selectTipo2.style.display = "block";
         btnMais.style.display = "none";
       });
 
       aplicarMascaraContato(tr.querySelector(".edit-contato"));
-
       tr.querySelector(".btn-salvar-inline").addEventListener("click", () => salvarInline(m.key, tr));
       tr.querySelector(".btn-cancelar-inline").addEventListener("click", () => cancelarEdicao());
 
     } else {
-      // Vista normal del registro
+      // Visualização normal do registro na tabela
+      let htmlInstrumentos = "";
+      let htmlTipos = "";
+
+      insts.forEach((inst, idx) => {
+        const tipoCorr = tps[idx] || tps[0] || "";
+        if(inst) {
+          htmlInstrumentos += `<div>${inst}</div>`;
+          htmlTipos += `<div>${tipoCorr}</div>`;
+        }
+      });
+
       tr.innerHTML = `
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
-        <td>${m.instrumento}</td>
-        <td>${m.tipo}</td>
+        <td>${htmlInstrumentos}</td>
+        <td>${htmlTipos}</td>
         <td>${m.contato}</td>
         <td>
           <button class="btn-editar">✏️</button>
@@ -571,24 +546,15 @@ function atualizar(){
       tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
       tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
     }
-    
     tabela.appendChild(tr);
   });
 
   contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s)</strong>`;
 }
 
-function editar(key){
-  editKey = key;
-  atualizar(); // Forzamos el rediseño para renderizar los campos inline en la fila seleccionada
-}
+function editar(key){ editKey = key; atualizar(); }
+function cancelarEdicao() { editKey = null; atualizar(); }
 
-function cancelarEdicao() {
-  editKey = null;
-  atualizar();
-}
-
-// AJUSTADO: A edição em linha também converte o nome alterado para caixa alta
 function salvarInline(key, tr) {
   const nomeNovo = tr.querySelector(".edit-nome").value.trim().toUpperCase();
   const contatoNovo = tr.querySelector(".edit-contato").value.trim();
@@ -600,29 +566,31 @@ function salvarInline(key, tr) {
 
   const inst1 = tr.querySelector(".edit-inst1").value;
   const selectInst2 = tr.querySelector(".edit-inst2");
-  let instrumentosFinal = [inst1];
+  const tp1 = tr.querySelector(".edit-tipo1").value;
+  const selectTipo2 = tr.querySelector(".edit-tipo2");
 
-  if (selectInst2.style.display !== "none" && selectInst2.value && selectInst2.value !== inst1) {
+  let instrumentosFinal = [inst1];
+  let tiposFinal = [tp1];
+
+  if (selectInst2.style.display !== "none" && selectInst2.value) {
     instrumentosFinal.push(selectInst2.value);
+    tiposFinal.push(selectTipo2.value || tp1);
   }
 
   const dados = {
     igreja: tr.querySelector(".edit-igreja").value,
     nome: nomeNovo,
     instrumento: instrumentosFinal.join(", "),
-    tipo: tr.querySelector(".edit-tipo").value,
+    tipo: tiposFinal.join(", "),
     contato: contatoNovo
   };
 
-  // Al guardar de forma manual sobreescribimos quitando el flag "invalid" del registro original
-  set(ref(database, 'musicos/' + key), dados)
-    .then(() => {
-      editKey = null;
-    })
-    .catch((error) => {
-      alert("Error al actualizar los datos en el servidor.");
-      console.error(error);
-    });
+  set(ref(database, 'musicos/' + key), dados).then(() => {
+    editKey = null;
+  }).catch((error) => {
+    alert("Error al actualizar los datos en el servidor.");
+    console.error(error);
+  });
 }
 
 function excluir(key){
@@ -631,94 +599,59 @@ function excluir(key){
   }
 }
 
-// Exportar e Importar Excel
 document.getElementById("btn-exportar").addEventListener("click", () => {
-  if (filtrados.length === 0) {
-    alert("No hay datos para exportar.");
-    return;
-  }
-
+  if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   let csvContent = "Iglesia;Nombre;Instrumento;Tipo;Contacto\n";
   filtrados.forEach(m => {
     let fila = [m.igreja, m.nome, m.instrumento, m.tipo, m.contato].join(";");
     csvContent += fila + "\n";
   });
-
   const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", "Registro_de_Musicos_CCA.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  link.setAttribute("href", url); link.setAttribute("download", "Registro_de_Musicos_CCA.csv");
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
 });
 
-document.getElementById("btn-clique-importar").addEventListener("click", () => {
-  document.getElementById("inputImportar").click();
-});
+document.getElementById("btn-clique-importar").addEventListener("click", () => { document.getElementById("inputImportar").click(); });
 
 document.getElementById("inputImportar").addEventListener("change", (event) => {
   const archivo = event.target.files[0];
   if (!archivo) return;
-
   const lector = new FileReader();
   lector.onload = function(e) {
     const contenido = e.target.result;
     const lineas = contenido.split(/\r?\n/);
-    
-    if (lineas.length <= 1 || lineas[0].trim() === "") {
-      alert("El archivo seleccionado está vacío o no es válido.");
-      return;
-    }
+    if (lineas.length <= 1 || lineas[0].trim() === "") { alert("El archivo seleccionado está vacío o no es válido."); return; }
 
-    let registrosImportados = 0;
-    let registrosDuplicados = 0;
-    let registrosComErro = 0;
-
-    // Set para controlar duplicados de Nome + Igreja dentro do próprio arquivo CSV sendo processado
+    let registrosImportados = 0; let registrosDuplicados = 0; let registrosComErro = 0;
     const processadosNoCsv = new Set();
 
     for (let i = 1; i < lineas.length; i++) {
-      const linea = lineas[i].trim();
-      if (linea === "") continue; 
-
+      const linea = lineas[i].trim(); if (linea === "") continue; 
       const campos = linea.split(";");
 
       if (campos.length >= 5) {
-        // Força todos os campos de texto para CAIXA ALTA (.toUpperCase())
         const igrejaImportar = campos[0].trim().toUpperCase();
         const nomeImportar = campos[1].trim().toUpperCase();
         const instrumentoImportar = campos[2].trim().toUpperCase();
         const tipoImportar = campos[3].trim().toUpperCase();
         const contatoImportar = campos[4].trim().toUpperCase();
 
-        // Cria uma chave composta exclusiva (Nome + Igreja) para verificar duplicidades
         const chaveComposta = `${nomeImportar}|${igrejaImportar}`;
+        const jaExisteNoFirebase = lista.some(m => m.nome.toUpperCase() === nomeImportar && m.igreja.toUpperCase() === igrejaImportar);
 
-        // Verifica duplicidade interna no arquivo CSV e duplicidade cruzada com a lista do Firebase
-        const jaExisteNoFirebase = lista.some(m => 
-          m.nome.toUpperCase() === nomeImportar && 
-          m.igreja.toUpperCase() === igrejaImportar
-        );
-
-        if (processadosNoCsv.has(chaveComposta) || jaExisteNoFirebase) {
-          registrosDuplicados++;
-          continue; // DESCARTA O REGISTRO DUPLICADO IMEDIATAMENTE
-        }
-
-        // Adiciona à lista de controle interno para as próximas linhas do laço
+        if (processadosNoCsv.has(chaveComposta) || jaExisteNoFirebase) { registrosDuplicados++; continue; }
         processadosNoCsv.add(chaveComposta);
 
-        // VALIDACIÓN ESTRICTA: Compara contra os arrays do sistema convertidos para caixa alta
         const igrejaValida = igrejas.map(x => x.toUpperCase()).includes(igrejaImportar);
-        const tipoValido = tipos.map(x => x.toUpperCase()).includes(tipoImportar);
         
-        // Maneja se vêm múltiplos instrumentos na célula separados por vírgula
+        // Validação estrita para múltiplos tipos mapeados na importação
+        const tpsImportados = tipoImportar.split(",").map(x => x.trim());
+        const tipoValido = tpsImportados.every(t => tipos.map(x => x.toUpperCase()).includes(t));
+        
         const instsImportados = instrumentoImportar.split(",").map(x => x.trim());
-        const instrumentosValidos = instsImportados.every(inst => 
-          instrumentos.map(x => x.toUpperCase()).includes(inst)
-        );
+        const instrumentosValidos = instsImportados.every(inst => instrumentos.map(x => x.toUpperCase()).includes(inst));
 
         let dados = {
           igreja: igrejaImportar,
@@ -728,132 +661,56 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
           contato: contatoImportar
         };
 
-        // Si hay divergencias, le inyectamos la propiedad invalid
-        if (!igrejaValida || !tipoValido || !instrumentosValidos) {
-          dados.invalid = true;
-          registrosComErro++;
-        }
-
-        push(ref(database, 'musicos'), dados);
-        registrosImportados++;
+        if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; registrosComErro++; }
+        push(ref(database, 'musicos'), dados); registrosImportados++;
       }
     }
-
-    if (registrosComErro > 0) {
-      alert(`Importación finalizada:\n✅ ${registrosImportados} músicos agregados em caixa alta.\n⚠️ ${registrosComErro} registros contienen divergencias y están resaltados en rojo.\n🛑 ${registrosDuplicados} registros duplicados foram descartados.`);
-    } else if (registrosDuplicados > 0) {
-      alert(`Importación finalizada:\n✅ ${registrosImportados} novos músicos agregados em caixa alta.\n⚠️ ${registrosDuplicados} registros duplicados foram totalmente descartados.`);
-    } else {
-      alert(`¡Éxito! Se importaron ${registrosImportados} músicos correctamente em caixa alta.`);
-    }
+    alert(`Importación finalizada. Procesados exitosamente.`);
     event.target.value = '';
   };
   lector.readAsText(archivo, 'UTF-8');
 });
 
-// --- 🚨 FUNÇÃO PARA BORRAR TODO EL REGISTRO CON VALIDACIÓN DE CONTRASEÑA ---
 document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
-  if (lista.length === 0) {
-    alert("No hay ningún registro para eliminar.");
-    return;
-  }
-
-  // Confirmación inicial preventiva
-  if (!confirm("⚠️ ATENCIÓN: Esta acción eliminará por completo a TODOS los músicos del sistema. ¿Realmente desea continuar?")) {
-    return;
-  }
-
-  // Solicitar contraseña para proceder
-  const senhaInformada = prompt("Por seguridad, introduzca su contraseña de inicio de sesión:");
-  
-  if (!senhaInformada) {
-    alert("Acción cancelada. La contraseña es obligatoria.");
-    return;
-  }
-
+  if (lista.length === 0) { alert("No hay ningún registro para eliminar."); return; }
+  if (!confirm("⚠️ ATENCIÓN: Esta acción eliminará por completo a TODOS los músicos. ¿Continuar?")) return;
+  const senhaInformada = prompt("Introduzca su contraseña:");
+  if (!senhaInformada) return;
   const usuarioAtual = auth.currentUser;
-
   if (usuarioAtual && usuarioAtual.email) {
-    // Generar la credencial de reautenticación
     const credencial = EmailAuthProvider.credential(usuarioAtual.email, senhaInformada);
-
-    // Reautenticar al usuario para asegurar la sesión
-    reauthenticateWithCredential(usuarioAtual, credencial)
-      .then(() => {
-        // Confirmación final tras validar la contraseña correctamente
-        if (confirm("Confirmación final: ¿Eliminar la base de datos completa ahora?")) {
-          remove(ref(database, 'musicos'))
-            .then(() => {
-              alert("💥 Todos los registros han sido eliminados con éxito de la base de dados.");
-            })
-            .catch((error) => {
-              alert("Error al intentar limpiar la base de datos.");
-              console.error(error);
-            });
-        }
-      })
-      .catch((error) => {
-        alert("❌ Contraseña incorrecta o inválida. Acceso denegado para borrar los dados.");
-        console.error(error);
-      });
-  } else {
-    alert("Error de sesión: No se detectó ningún usuario activo.");
+    reauthenticateWithCredential(usuarioAtual, credencial).then(() => {
+      if (confirm("¿Confirmar eliminación total?")) {
+        remove(ref(database, 'musicos')).then(() => alert("💥 Dados limpos."));
+      }
+    }).catch(() => alert("❌ Contraseña incorrecta."));
   }
 });
 
-// --- Manejo del Evento de Ordenación en los encabezados ---
 function ordenarPor(coluna) {
-  if (colunaOrdenada === coluna) {
-    ordemCrescente = !ordemCrescente; // Si vuelve a hacer clic en la misma columna, invierte el orden (A-Z -> Z-A)
-  } else {
-    colunaOrdenada = coluna;
-    ordemCrescente = true; // Columna nueva: empieza en orden ascendente (A-Z)
-  }
+  if (colunaOrdenada === coluna) { ordemCrescente = !ordemCrescente; } else { colunaOrdenada = coluna; ordemCrescente = true; }
   atualizar();
 }
-
-// Vinculación de los clics a los elementos correspondientes
 const cabecalhos = document.querySelectorAll("table th");
-cabecalhos[0].addEventListener("click", () => ordenarPor("igreja"));      // Columna Iglesia
-cabecalhos[1].addEventListener("click", () => ordenarPor("nome"));         // Columna Nombre
-cabecalhos[2].addEventListener("click", () => ordenarPor("instrumento"));  // Columna Instrumento
-cabecalhos[3].addEventListener("click", () => ordenarPor("tipo"));         // Columna Tipo
+cabecalhos[0].addEventListener("click", () => ordenarPor("igreja"));
+cabecalhos[1].addEventListener("click", () => ordenarPor("nome"));
+cabecalhos[2].addEventListener("click", () => ordenarPor("instrumento"));
+cabecalhos[3].addEventListener("click", () => ordenarPor("tipo"));
 
-// Estilo visual e indications para las columnas que son ordenables
-cabecalhos.forEach((th, index) => {
-  if(index < 4) { 
-    th.style.cursor = "pointer";
-    th.title = "Haga clic aquí para ordenar alfabéticamente";
-  }
-});
-
-// Eventos de busca e limpar busca
+cabecalhos.forEach((th, index) => { if(index < 4) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
-  // 1. Limpa o texto digitado na pesquisa por nome/instrumento
   busca.value = ""; 
-
-  // 2. Desmarca todas as caixas de seleção (checkboxes) dos 3 dropdowns
-  const todasAsCheckboxes = document.querySelectorAll('.chk-igreja, .chk-instrumento, .chk-tipo');
-  todasAsCheckboxes.forEach(chk => {
-    chk.checked = false;
-  });
-
-  // 3. Reseta os textos padrão dos botões dos dropdowns
+  document.querySelectorAll('.chk-igreja, .chk-instrumento, .chk-tipo').forEach(chk => chk.checked = false);
   textoFiltroIgrejas.textContent = "Todas las Iglesias";
   textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
   textoFiltroTipos.textContent = "Todos los Tipos";
-
-  // ALTERADO: Redefine o texto de cada botão único de volta para o padrão inicial "Seleccionar"
   document.getElementById("btn-toggle-igrejas").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-instrumentos").textContent = "Seleccionar Todos";
   document.getElementById("btn-toggle-tipos").textContent = "Seleccionar Todos";
-
-  // 4. Recarrega a tabela de forma limpa trazendo todos os registros
   atualizar();      
 });
 </script>
-
 </body>
 </html>
