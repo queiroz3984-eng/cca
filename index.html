@@ -13,8 +13,13 @@ button { padding:6px 10px; border:none; cursor:pointer; border-radius:5px; }
 table { width:100%; border-collapse:collapse; }
 th, td { padding:10px; border:1px solid #ccc; }
 th { background:#0078D4; color:white; }
-#busca { width:250px; padding:10px; }
 .logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
+
+/* Container da busca e botão limpar */
+.busca-container { display: flex; align-items: center; margin-bottom: 15px; gap: 5px; }
+#busca { width:250px; padding:10px; margin: 0; }
+.btn-limpar { background: #ccc; color: #333; font-weight: bold; padding: 10px 14px; border-radius: 5px; font-size: 14px; }
+.btn-limpar:hover { background: #b5b5b5; }
 
 /* Contenedor de acciones superiores y diseño de los botones */
 .topo-acoes { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
@@ -68,7 +73,10 @@ tr.linha-erro {
   <img src="logo.png" class="logo-topo">
   <h1>Registro de Músicos CCA</h1>
 
-  <input type="text" id="busca" placeholder="Buscar...">
+  <div class="busca-container">
+    <input type="text" id="busca" placeholder="Buscar...">
+    <button type="button" id="btn-limpar-busca" class="btn-limpar" title="Limpiar búsqueda y filtros">❌</button>
+  </div>
 
   <div class="filtros">
     
@@ -177,6 +185,7 @@ const instrumento1 = document.getElementById("instrumento1");
 const instrumento2 = document.getElementById("instrumento2");
 const tabela = document.getElementById("tabela");
 const busca = document.getElementById("busca");
+const btnLimparBusca = document.getElementById("btn-limpar-busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
 
@@ -193,6 +202,10 @@ const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
 let lista = []; 
 let editKey = null; 
 let filtrados = []; 
+
+// Controle de Ordenação Dinâmica
+let colunaOrdenada = "nome"; // Coluna padrão inicial
+let ordemCrescente = true;   // Direção inicial
 
 // --- 🛡️ CONTROLE DE AUTENTICAÇÃO EM TEMPO REAL ---
 const telaLogin = document.getElementById("tela-login");
@@ -331,17 +344,22 @@ document.getElementById("btn-mais-instrumento").addEventListener("click", () => 
   instrumento2.style.display = "inline-block";
 });
 
-inputContato.addEventListener("input", function (e) {
-  let value = e.target.value.replace(/\D/g, '');
-  if (value.startsWith("54")) value = value.substring(2);
-  if (value.startsWith("9")) value = value.substring(1);
-  value = value.substring(0, 10);
-  let formatted = "+54 9";
-  if (value.length >= 1) formatted += " " + value.substring(0, 2);
-  if (value.length >= 3) formatted += " " + value.substring(2, 6);
-  if (value.length >= 7) formatted += "-" + value.substring(6, 10);
-  e.target.value = formatted;
-});
+// Função auxiliar para aplicar a máscara de contato nos inputs de forma independente (útil para inline)
+function aplicarMascaraContato(input) {
+  input.addEventListener("input", function (e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.startsWith("54")) value = value.substring(2);
+    if (value.startsWith("9")) value = value.substring(1);
+    value = value.substring(0, 10);
+    let formatted = "+54 9";
+    if (value.length >= 1) formatted += " " + value.substring(0, 2);
+    if (value.length >= 3) formatted += " " + value.substring(2, 6);
+    if (value.length >= 7) formatted += "-" + value.substring(6, 10);
+    e.target.value = formatted;
+  });
+}
+
+aplicarMascaraContato(inputContato);
 
 // Salvar / Editar Músico
 document.getElementById("formMusico").addEventListener("submit", function(e){
@@ -363,18 +381,12 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     contato: inputContato.value
   };
 
-  if (editKey === null) {
-    const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
-    if (existe) {
-      alert("Este músico ya se encuentra registrado en esta iglesia.");
-      return;
-    }
-    push(ref(database, 'musicos'), dados);
-  } else {
-    // Al guardar o editar manualmente, sobreescribimos quitando el flag "invalid" (asumiendo corrección)
-    set(ref(database, 'musicos/' + editKey), dados);
-    editKey = null;
+  const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
+  if (existe) {
+    alert("Este músico ya se encuentra registrado in esta iglesia.");
+    return;
   }
+  push(ref(database, 'musicos'), dados);
 
   document.getElementById("formMusico").reset();
   instrumento2.style.display = "none";
@@ -386,7 +398,7 @@ function atualizar(){
   
   const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
-  const tiposSelecionados = pegarValoresSelecionados("chk-tipo");
+  const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
 
   tabela.innerHTML = "";
 
@@ -396,7 +408,7 @@ function atualizar(){
     (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
     
     // Filtro Múltiplo de Tipos
-    (tiposSelecionados.length === 0 || tiposSelecionados.includes(m.tipo)) &&
+    (tiposSelecionadas.length === 0 || tiposSelecionadas.includes(m.tipo)) &&
     
     // Filtro Múltiplo de Instrumentos (verifica se possui pelo menos um dos marcados)
     (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento.includes(inst))) &&
@@ -407,7 +419,17 @@ function atualizar(){
       m.instrumento.toLowerCase().includes(texto)
     )
   )
-  .sort((a, b) => a.nome.localeCompare(b.nome));
+  // Ordenación Alfabética Dinámica
+  .sort((a, b) => {
+    let valorA = a[colunaOrdenada] ? a[colunaOrdenada].toLowerCase() : "";
+    let valorB = b[colunaOrdenada] ? b[colunaOrdenada].toLowerCase() : "";
+    
+    if (ordemCrescente) {
+      return valorA.localeCompare(valorB);
+    } else {
+      return valorB.localeCompare(valorA);
+    }
+  });
 
   filtrados.forEach((m)=>{
     const tr = document.createElement("tr");
@@ -417,20 +439,63 @@ function atualizar(){
       tr.classList.add("linha-erro");
     }
 
-    tr.innerHTML = `
-      <td>${m.igreja}</td>
-      <td>${m.nome}</td>
-      <td>${m.instrumento}</td>
-      <td>${m.tipo}</td>
-      <td>${m.contato}</td>
-      <td>
-        <button class="btn-editar">✏️</button>
-        <button class="btn-excluir">🗑️</button>
-      </td>
-    `;
-    
-    tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
-    tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
+    // Si coincide con la clave en edição, renderizamos campos de entrada en lugar de texto plano
+    if (editKey === m.key) {
+      const optionsIgrejas = igrejas.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
+      const optionsTipos = tipos.map(t => `<option value="${t}" ${t === m.tipo ? 'selected' : ''}>${t}</option>`).join('');
+      
+      const insts = m.instrumento.split(", ");
+      const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
+      const optionsInst2 = instrumentos.map(i => `<option value="${i}" ${i === insts[1] ? 'selected' : ''}>${i}</option>`).join('');
+
+      tr.innerHTML = `
+        <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
+        <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
+        <td>
+          <select class="edit-inst1" style="width:100%; padding:4px; margin-bottom:2px;">${optionsInst1}</select>
+          <select class="edit-inst2" style="width:100%; padding:4px; ${insts[1] ? '' : 'display:none;'}">
+            <option value="">Segundo Instrumento (Opcional)</option>
+            ${optionsInst2}
+          </select>
+          <button type="button" class="btn-edit-mais" style="padding:2px 6px; font-size:11px; ${insts[1] ? 'display:none;' : ''}">+</button>
+        </td>
+        <td><select class="edit-tipo" style="width:100%; padding:4px;">${optionsTipos}</select></td>
+        <td><input type="text" class="edit-contato" value="${m.contato}" style="width:90%; padding:4px;" required></td>
+        <td>
+          <button class="btn-salvar-inline" title="Guardar">💾</button>
+          <button class="btn-cancelar-inline" title="Cancelar">❌</button>
+        </td>
+      `;
+
+      const btnMais = tr.querySelector(".btn-edit-mais");
+      const selectInst2 = tr.querySelector(".edit-inst2");
+      btnMais.addEventListener("click", () => {
+        selectInst2.style.display = "block";
+        btnMais.style.display = "none";
+      });
+
+      aplicarMascaraContato(tr.querySelector(".edit-contato"));
+
+      tr.querySelector(".btn-salvar-inline").addEventListener("click", () => salvarInline(m.key, tr));
+      tr.querySelector(".btn-cancelar-inline").addEventListener("click", () => cancelarEdicao());
+
+    } else {
+      // Vista normal del registro
+      tr.innerHTML = `
+        <td>${m.igreja}</td>
+        <td>${m.nome}</td>
+        <td>${m.instrumento}</td>
+        <td>${m.tipo}</td>
+        <td>${m.contato}</td>
+        <td>
+          <button class="btn-editar">✏️</button>
+          <button class="btn-excluir">🗑️</button>
+        </td>
+      `;
+      
+      tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
+      tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
+    }
     
     tabela.appendChild(tr);
   });
@@ -439,25 +504,49 @@ function atualizar(){
 }
 
 function editar(key){
-  const m = lista.find(x => x.key === key);
-  if(!m) return;
+  editKey = key;
+  atualizar(); // Forzamos el rediseño para renderizar los campos inline en la fila seleccionada
+}
 
-  igrejaSelect.value = m.igreja;
-  document.getElementById("nome").value = m.nome;
-  document.getElementById("tipo").value = m.tipo;
-  inputContato.value = m.contato;
+function cancelarEdicao() {
+  editKey = null;
+  atualizar();
+}
 
-  const inst = m.instrumento.split(", ");
-  instrumento1.value = inst[0];
+function salvarInline(key, tr) {
+  const nomeNovo = tr.querySelector(".edit-nome").value.trim();
+  const contatoNovo = tr.querySelector(".edit-contato").value.trim();
 
-  if (inst[1]) {
-    instrumento2.style.display = "inline-block";
-    instrumento2.value = inst[1];
-  } else {
-    instrumento2.style.display = "none";
+  if (!nomeNovo || !contatoNovo) {
+    alert("Por favor, complete los campos requeridos.");
+    return;
   }
 
-  editKey = key;
+  const inst1 = tr.querySelector(".edit-inst1").value;
+  const selectInst2 = tr.querySelector(".edit-inst2");
+  let instrumentosFinal = [inst1];
+
+  if (selectInst2.style.display !== "none" && selectInst2.value && selectInst2.value !== inst1) {
+    instrumentosFinal.push(selectInst2.value);
+  }
+
+  const dados = {
+    igreja: tr.querySelector(".edit-igreja").value,
+    nome: nomeNovo,
+    instrumento: instrumentosFinal.join(", "),
+    tipo: tr.querySelector(".edit-tipo").value,
+    contato: contatoNovo
+  };
+
+  // Al guardar de forma manual sobreescribimos quitando el flag "invalid" del registro original
+  set(ref(database, 'musicos/' + key), dados)
+    .then(() => {
+      editKey = null;
+    })
+    .catch((error) => {
+      alert("Error al actualizar los datos en el servidor.");
+      console.error(error);
+    });
 }
 
 function excluir(key){
@@ -623,7 +712,53 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
   }
 });
 
+// --- Manejo del Evento de Ordenación en los encabezados ---
+function ordenarPor(coluna) {
+  if (colunaOrdenada === coluna) {
+    ordemCrescente = !ordemCrescente; // Si vuelve a hacer clic en la misma columna, invierte el orden (A-Z -> Z-A)
+  } else {
+    colunaOrdenada = coluna;
+    ordemCrescente = true; // Columna nueva: empieza en orden ascendente (A-Z)
+  }
+  atualizar();
+}
+
+// Vinculación de los clics a los elementos correspondientes
+const cabecalhos = document.querySelectorAll("table th");
+cabecalhos[0].addEventListener("click", () => ordenarPor("igreja"));      // Columna Iglesia
+cabecalhos[1].addEventListener("click", () => ordenarPor("nome"));         // Columna Nombre
+cabecalhos[2].addEventListener("click", () => ordenarPor("instrumento"));  // Columna Instrumento
+cabecalhos[3].addEventListener("click", () => ordenarPor("tipo"));         // Columna Tipo
+
+// Estilo visual e indications para las columnas que son ordenables
+cabecalhos.forEach((th, index) => {
+  if(index < 4) { 
+    th.style.cursor = "pointer";
+    th.title = "Haga clic aquí para ordenar alfabéticamente";
+  }
+});
+
+// Eventos de busca e limpar busca
 busca.addEventListener("input", atualizar);
+
+btnLimparBusca.addEventListener("click", () => {
+  // 1. Limpa o texto digitado na pesquisa por nome/instrumento
+  busca.value = ""; 
+
+  // 2. Desmarca todas as caixas de seleção (checkboxes) dos 3 dropdowns
+  const todasAsCheckboxes = document.querySelectorAll('.chk-igreja, .chk-instrumento, .chk-tipo');
+  todasAsCheckboxes.forEach(chk => {
+    chk.checked = false;
+  });
+
+  // 3. Reseta os textos padrão dos botões dos dropdowns
+  textoFiltroIgrejas.textContent = "Todas las Iglesias";
+  textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
+  textoFiltroTipos.textContent = "Todos los Tipos";
+
+  // 4. Recarrega a tabela de forma limpa trazendo todos os registros
+  atualizar();      
+});
 </script>
 
 </body>
