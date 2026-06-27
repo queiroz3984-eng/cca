@@ -439,6 +439,15 @@ function atualizar(){
 
   tabela.innerHTML = "";
 
+  // NOVO: Contar a frequência dos nomes na lista completa para identificar duplicatas
+  const contagemNomes = {};
+  lista.forEach(m => {
+    if (m.nome) {
+      const nomeNormalizado = m.nome.trim().toUpperCase();
+      contagemNomes[nomeNormalizado] = (contagemNomes[nomeNormalizado] || 0) + 1;
+    }
+  });
+
   filtrados = lista
   .filter(m =>
     (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
@@ -458,7 +467,9 @@ function atualizar(){
   filtrados.forEach((m)=>{
     const tr = document.createElement("tr");
     
-    if (m.invalid) {
+    // ALTERADO: Adiciona destaque vermelho se for inválido OU se o nome estiver duplicado na base de dados
+    const nomeNormalizado = m.nome ? m.nome.trim().toUpperCase() : "";
+    if (m.invalid || (contagemNomes[nomeNormalizado] > 1)) {
       tr.classList.add("linha-erro");
     }
 
