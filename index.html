@@ -50,6 +50,11 @@ th { background:#0078D4; color:white; }
 .checkboxes-dropdown label:hover { background-color: #0078D4; color: white; }
 .checkboxes-dropdown input { width: auto; margin-right: 10px; vertical-align: middle; }
 
+/* ALTERADO: Estilo do botão único alternável no topo do dropdown */
+.dropdown-acoes-topo { padding: 4px 12px; border-bottom: 1px dashed #eee; background: #fdfdfd; text-align: center; }
+.btn-alternar-todos { font-size: 11px; text-decoration: none; font-weight: bold; color: #0078D4; display: block; width: 100%; text-align: left; }
+.btn-alternar-todos:hover { text-decoration: underline; }
+
 /* Clase de alerta para destacar filas con datos divergentes o errores */
 tr.linha-erro {
   background-color: #ffcccc !important;
@@ -258,6 +263,21 @@ instrumentos.forEach(i=>{
   instrumento2.innerHTML += `<option>${i}</option>`;
 });
 
+
+// ALTERADO: Injeta apenas um botão alternável no topo de cada container de checkboxes
+containerIgrejas.innerHTML = `
+  <div class="dropdown-acoes-topo">
+    <a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a>
+  </div>`;
+containerInstrumentos.innerHTML = `
+  <div class="dropdown-acoes-topo">
+    <a href="#" class="btn-alternar-todos" id="btn-toggle-instrumentos">Seleccionar Todos</a>
+  </div>`;
+containerTipos.innerHTML = `
+  <div class="dropdown-acoes-topo">
+    <a href="#" class="btn-alternar-todos" id="btn-toggle-tipos">Seleccionar Todos</a>
+  </div>`;
+
 // Gerar Checkboxes dinamicamente para os 3 filtros
 igrejas.forEach(ig => {
   const label = document.createElement("label");
@@ -276,6 +296,58 @@ tipos.forEach(tp => {
   label.innerHTML = `<input type="checkbox" value="${tp}" class="chk-tipo"> ${tp}`;
   containerTipos.appendChild(label);
 });
+
+
+// ALTERADO: Função genérica para gerenciar o clique do botão único (liga/desliga)
+function gerenciarBotaoAlternar(idBotao, classeCheckboxes, textoPadrao, textoPlural, elementoTextoFiltro) {
+  const botao = document.getElementById(idBotao);
+  
+  botao.addEventListener("click", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const chks = document.querySelectorAll(`.${classeCheckboxes}`);
+    const marcados = document.querySelectorAll(`.${classeCheckboxes}:checked`);
+    
+    // Se nem todos estão marcados, o clique irá MARCAR TODOS
+    if (marcados.length < chks.length) {
+      chks.forEach(chk => chk.checked = true);
+      botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Desmarcar Todos" : "Desmarcar Todas";
+      elementoTextoFiltro.textContent = `${chks.length} Seleccionadas`;
+    } else {
+      // Se todos já estavam marcados, o clique irá DESMARCAR TODOS
+      chks.forEach(chk => chk.checked = false);
+      botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Seleccionar Todos" : "Seleccionar Todas";
+      elementoTextoFiltro.textContent = textoPadrao;
+    }
+    atualizar();
+  });
+}
+
+// ALTERADO: Função auxiliar para monitorar mudanças manuais nos checkboxes e atualizar o texto do botão de cabeçalho
+function monitorarMudancasCheckboxes(idBotao, classeCheckboxes, textoPlural) {
+  const checkboxes = document.querySelectorAll(`.${classeCheckboxes}`);
+  checkboxes.forEach(chk => {
+    chk.addEventListener("change", () => {
+      const botao = document.getElementById(idBotao);
+      const marcados = document.querySelectorAll(`.${classeCheckboxes}:checked`);
+      
+      if (marcados.length === checkboxes.length) {
+        botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Desmarcar Todos" : "Desmarcar Todas";
+      } else {
+        botao.textContent = textoPlural === "Instrumentos" || textoPlural === "Tipos" ? "Seleccionar Todos" : "Seleccionar Todas";
+      }
+    });
+  });
+}
+
+// ALTERADO: Ativa a lógica do botão alternável único para cada um dos 3 filtros
+gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
+gerenciarBotaoAlternar("btn-toggle-instrumentos", "chk-instrumento", "Todos los Instrumentos", "Instrumentos", textoFiltroInstrumentos);
+gerenciarBotaoAlternar("btn-toggle-tipos", "chk-tipo", "Todos los Tipos", "Tipos", textoFiltroTipos);
+
+monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
+monitorarMudancasCheckboxes("btn-toggle-instrumentos", "chk-instrumento", "Instrumentos");
+monitorarMudancasCheckboxes("btn-toggle-tipos", "chk-tipo", "Tipos");
+
 
 // --- CONTROLE DE ABERTURA/FECHAMENTO DOS DROPDOWNS ---
 function fecharTodosDropdowns() {
@@ -755,6 +827,11 @@ btnLimparBusca.addEventListener("click", () => {
   textoFiltroIgrejas.textContent = "Todas las Iglesias";
   textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
   textoFiltroTipos.textContent = "Todos los Tipos";
+
+  // ALTERADO: Redefine o texto de cada botão único de volta para o padrão inicial "Seleccionar"
+  document.getElementById("btn-toggle-igrejas").textContent = "Seleccionar Todas";
+  document.getElementById("btn-toggle-instrumentos").textContent = "Seleccionar Todos";
+  document.getElementById("btn-toggle-tipos").textContent = "Seleccionar Todos";
 
   // 4. Recarrega a tabela de forma limpa trazendo todos os registros
   atualizar();      
