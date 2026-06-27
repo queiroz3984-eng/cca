@@ -445,9 +445,12 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     instrumentosFinal.push(inst2);
   }
 
+  // AJUSTADO: Converte o nome digitado manualmente para caixa alta (.toUpperCase())
+  const nomeEmCaixaAlta = document.getElementById("nome").value.trim().toUpperCase();
+
   const dados = {
     igreja: igrejaSelect.value,
-    nome: document.getElementById("nome").value,
+    nome: nomeEmCaixaAlta,
     instrumento: instrumentosFinal.join(", "),
     tipo: document.getElementById("tipo").value,
     contato: inputContato.value
@@ -585,8 +588,9 @@ function cancelarEdicao() {
   atualizar();
 }
 
+// AJUSTADO: A edição em linha também converte o nome alterado para caixa alta
 function salvarInline(key, tr) {
-  const nomeNovo = tr.querySelector(".edit-nome").value.trim();
+  const nomeNovo = tr.querySelector(".edit-nome").value.trim().toUpperCase();
   const contatoNovo = tr.querySelector(".edit-contato").value.trim();
 
   if (!nomeNovo || !contatoNovo) {
@@ -672,6 +676,9 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     let registrosDuplicados = 0;
     let registrosComErro = 0;
 
+    // Set para controlar duplicados de Nome + Igreja dentro do próprio arquivo CSV sendo processado
+    const processadosNoCsv = new Set();
+
     for (let i = 1; i < lineas.length; i++) {
       const linea = lineas[i].trim();
       if (linea === "") continue; 
@@ -679,29 +686,39 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       const campos = linea.split(";");
 
       if (campos.length >= 5) {
-        const igrejaImportar = campos[0].trim();
-        const nomeImportar = campos[1].trim();
-        const instrumentoImportar = campos[2].trim();
-        const tipoImportar = campos[3].trim();
-        const contatoImportar = campos[4].trim();
+        // Força todos os campos de texto para CAIXA ALTA (.toUpperCase())
+        const igrejaImportar = campos[0].trim().toUpperCase();
+        const nomeImportar = campos[1].trim().toUpperCase();
+        const instrumentoImportar = campos[2].trim().toUpperCase();
+        const tipoImportar = campos[3].trim().toUpperCase();
+        const contatoImportar = campos[4].trim().toUpperCase();
 
-        const yaExiste = lista.some(m => 
-          m.nome.toLowerCase() === nomeImportar.toLowerCase() && 
-          m.igreja.toLowerCase() === igrejaImportar.toLowerCase()
+        // Cria uma chave composta exclusiva (Nome + Igreja) para verificar duplicidades
+        const chaveComposta = `${nomeImportar}|${igrejaImportar}`;
+
+        // Verifica duplicidade interna no arquivo CSV e duplicidade cruzada com a lista do Firebase
+        const jaExisteNoFirebase = lista.some(m => 
+          m.nome.toUpperCase() === nomeImportar && 
+          m.igreja.toUpperCase() === igrejaImportar
         );
 
-        if (yaExiste) {
+        if (processadosNoCsv.has(chaveComposta) || jaExisteNoFirebase) {
           registrosDuplicados++;
-          continue;
+          continue; // DESCARTA O REGISTRO DUPLICADO IMEDIATAMENTE
         }
 
-        // VALIDACIÓN ESTRICTA: Compara contra los arrays del sistema (sensible a acentos y mayúsculas)
-        const igrejaValida = igrejas.includes(igrejaImportar);
-        const tipoValido = tipos.includes(tipoImportar);
+        // Adiciona à lista de controle interno para as próximas linhas do laço
+        processadosNoCsv.add(chaveComposta);
+
+        // VALIDACIÓN ESTRICTA: Compara contra os arrays do sistema convertidos para caixa alta
+        const igrejaValida = igrejas.map(x => x.toUpperCase()).includes(igrejaImportar);
+        const tipoValido = tipos.map(x => x.toUpperCase()).includes(tipoImportar);
         
-        // Maneja si vienen múltiples instrumentos en la celda separados por coma
+        // Maneja se vêm múltiplos instrumentos na célula separados por vírgula
         const instsImportados = instrumentoImportar.split(",").map(x => x.trim());
-        const instrumentosValidos = instsImportados.every(inst => instrumentos.includes(inst));
+        const instrumentosValidos = instsImportados.every(inst => 
+          instrumentos.map(x => x.toUpperCase()).includes(inst)
+        );
 
         let dados = {
           igreja: igrejaImportar,
@@ -723,11 +740,11 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     }
 
     if (registrosComErro > 0) {
-      alert(`Importación finalizada:\n✅ ${registrosImportados} músicos agregados.\n⚠️ ${registrosComErro} registros contienen divergencias (ej: acentos incorrectos como 'VIOLIN') y están resaltados en rojo.\n🛑 ${registrosDuplicados} registros duplicados ignorados.`);
+      alert(`Importación finalizada:\n✅ ${registrosImportados} músicos agregados em caixa alta.\n⚠️ ${registrosComErro} registros contienen divergencias y están resaltados en rojo.\n🛑 ${registrosDuplicados} registros duplicados foram descartados.`);
     } else if (registrosDuplicados > 0) {
-      alert(`Importación finalizada:\n✅ ${registrosImportados} novos músicos agregados.\n⚠️ ${registrosDuplicados} registros foram ignorados por estar duplicados.`);
+      alert(`Importación finalizada:\n✅ ${registrosImportados} novos músicos agregados em caixa alta.\n⚠️ ${registrosDuplicados} registros duplicados foram totalmente descartados.`);
     } else {
-      alert(`¡Éxito! Se importaron ${registrosImportados} músicos correctamente.`);
+      alert(`¡Éxito! Se importaron ${registrosImportados} músicos correctamente em caixa alta.`);
     }
     event.target.value = '';
   };
@@ -767,7 +784,7 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
         if (confirm("Confirmación final: ¿Eliminar la base de datos completa ahora?")) {
           remove(ref(database, 'musicos'))
             .then(() => {
-              alert("💥 Todos los registros han sido eliminados con éxito de la base de datos.");
+              alert("💥 Todos los registros han sido eliminados con éxito de la base de dados.");
             })
             .catch((error) => {
               alert("Error al intentar limpiar la base de datos.");
@@ -776,7 +793,7 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
         }
       })
       .catch((error) => {
-        alert("❌ Contraseña incorrecta o inválida. Acceso denegado para borrar los datos.");
+        alert("❌ Contraseña incorrecta o inválida. Acceso denegado para borrar los dados.");
         console.error(error);
       });
   } else {
