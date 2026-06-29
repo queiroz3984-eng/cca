@@ -15,6 +15,21 @@ th, td { padding:10px; border:1px solid #ccc; }
 th { background:#0078D4; color:white; }
 .logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
 
+/* Botões da tabela */
+.btn-editar, .btn-excluir, .btn-whatsapp { 
+  padding: 5px 8px; 
+  font-size: 14px; 
+  text-decoration: none; 
+  display: inline-block; 
+  border-radius: 4px;
+}
+.btn-whatsapp { background: #25D366; color: white; border: none; cursor: pointer; margin-right: 3px; }
+.btn-whatsapp:hover { background: #128C7E; }
+
+/* Botão de Envio em Lote */
+.btn-whatsapp-lote { background: #25D366; color: white; font-weight: bold; padding: 10px 15px; border-radius: 5px; font-size: 14px; margin-bottom: 15px; display: inline-flex; align-items: center; gap: 8px; }
+.btn-whatsapp-lote:hover { background: #128C7E; }
+
 /* Container da busca e botão limpar */
 .busca-container { display: flex; align-items: center; margin-bottom: 15px; gap: 5px; }
 #busca { width:250px; padding:10px; margin: 0; }
@@ -299,9 +314,14 @@ tr.linha-inativo {
     <button type="submit">Guardar</button>
   </form>
 
+  <div>
+    <button type="button" class="btn-whatsapp-lote" id="btn-enviar-selecionados">💬 Enviar WhatsApp a Seleccionados</button>
+  </div>
+
   <table>
   <thead>
   <tr>
+  <th style="width: 30px; cursor: default;"><input type="checkbox" id="selecionar-todos-tabela" title="Seleccionar/Desmarcar todos los visibles"></th>
   <th>Iglesia</th>
   <th>Nombre</th>
   <th>Instrumento</th>
@@ -358,6 +378,7 @@ const textoFiltroInstrumentos = document.getElementById("texto-filtro-instrument
 const containerTipos = document.getElementById("checkboxes-tipos");
 const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
 const filtroStatus = document.getElementById("filtro-status");
+const chkSelecionarTodosTabela = document.getElementById("selecionar-todos-tabela");
 
 let lista = []; 
 let editKey = null; 
@@ -692,12 +713,21 @@ document.getElementById("btn-toggle-grafico").addEventListener("click", function
   }
 });
 
+/* Listener para marcar ou desmarcar todos os checkboxes da tabela */
+chkSelecionarTodosTabela.addEventListener("change", function() {
+  const checkboxesMesa = document.querySelectorAll(".chk-musico-tabela");
+  checkboxesMesa.forEach(cb => cb.checked = this.checked);
+});
+
 function atualizar(){
   const texto = busca.value.toLowerCase();
   const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
   const statusSelecionado = filtroStatus.value;
+
+  // Desmarca a seleção geral quando reconstrói a lista filtrada
+  chkSelecionarTodosTabela.checked = false;
 
   tabela.innerHTML = "";
   const contagemNomes = {};
@@ -742,6 +772,8 @@ function atualizar(){
     const insts = m.instrumento ? m.instrumento.split(", ") : [""];
     const tps = m.tipo ? m.tipo.split(", ") : [""];
 
+    const numeroLimpo = m.contato ? m.contato.replace(/\D/g, '') : '';
+
     if (editKey === m.key) {
       const optionsIgrejas = igrejas.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
@@ -750,6 +782,7 @@ function atualizar(){
       const optionsTipo2 = tipos.map(t => `<option value="${t}" ${t === tps[1] ? 'selected' : ''}>${t}</option>`).join('');
 
       tr.innerHTML = `
+        <td></td>
         <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
         <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
         <td>
@@ -820,6 +853,7 @@ function atualizar(){
         : '✅ Activo';
 
       tr.innerHTML = `
+        <td style="text-align: center;"><input type="checkbox" class="chk-musico-tabela" value="${numeroLimpo}"></td>
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
         <td>${htmlInstrumentos}</td>
@@ -827,6 +861,7 @@ function atualizar(){
         <td>${m.contato}</td>
         <td>${htmlInativo}</td>
         <td>
+          <a href="https://wa.me/${numeroLimpo}" target="_blank" class="btn-whatsapp" title="Enviar WhatsApp">💬</a>
           <button class="btn-editar">✏️</button>
           <button class="btn-excluir">🗑️</button>
         </td>
@@ -841,6 +876,35 @@ function atualizar(){
   const container = document.getElementById("grafico-container");
   if (container.style.display === "flex") { atualizarGrafico(filtrados); }
 }
+
+/* Função para Processar Envios em Massa/Múltiplos */
+document.getElementById("btn-enviar-selecionados").addEventListener("click", () => {
+  const selecionados = document.querySelectorAll(".chk-musico-tabela:checked");
+  
+  if (selecionados.length === 0) {
+    alert("Por favor, seleccione al menos un músico de la lista.");
+    return;
+  }
+
+  // Se for apenas 1, abre direto
+  if (selecionados.length === 1) {
+    window.open(`https://wa.me/${selecionados[0].value}`, '_blank');
+    return;
+  }
+
+  // Se forem vários, o navegador tentará bloquear múltiplos pop-ups se abertos em um laço rápido.
+  // Abrimos uma confirmação clara informando ao usuário.
+  if (confirm(`Va a abrir ${selecionados.length} chats de WhatsApp. ¿Desea continuar? (Asegúrese de permitir las ventanas emergentes/popups en su navegador)`)) {
+    selecionados.forEach((chk, index) => {
+      // Pequeno atraso (delay) artificial para mitigar o bloqueio do navegador
+      setTimeout(() => {
+        if (chk.value) {
+          window.open(`https://wa.me/${chk.value}`, '_blank');
+        }
+      }, index * 400); 
+    });
+  }
+});
 
 function editar(key){ editKey = key; atualizar(); }
 function cancelarEdicao() { editKey = null; atualizar(); }
@@ -878,7 +942,7 @@ function salvarInline(key, tr) {
 
   set(ref(database, 'musicos/' + key), dados).then(() => { 
     editKey = null; 
-    atualizar(); // Força o redesenho imediato no formato padrão
+    atualizar(); 
   }).catch((e) => console.error(e));
 }
 
@@ -888,7 +952,6 @@ function excluir(key){ if(confirm("¿Realmente deseja eliminar a este músico?")
 document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
-  // Monta a estrutura de matriz de dados (Headers + Conteúdo)
   const dadosExcel = [
     ["Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo"]
   ];
@@ -905,18 +968,15 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
     ]);
   });
 
-  // Transforma em planilha do SheetJS
   const worksheet = XLSX.utils.aoa_to_sheet(dadosExcel);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Músicos");
 
-  // Adiciona metadados estruturais simples para garantir que o Excel confie no arquivo
   workbook.Props = {
     Title: "Registro de Musicos CCA",
     CreatedDate: new Date()
   };
 
-  // Executa o download gerando um binário zip legítimo de extensão .xlsx
   XLSX.writeFile(workbook, "Registro_de_Musicos_CCA.xlsx", { bookType: 'xlsx', type: 'array' });
 });
 
@@ -992,12 +1052,12 @@ function ordenarPor(coluna) {
   atualizar();
 }
 const cabecalhos = document.querySelectorAll("table th");
-cabecalhos[0].addEventListener("click", () => ordenarPor("igreja"));
-cabecalhos[1].addEventListener("click", () => ordenarPor("nome"));
-cabecalhos[2].addEventListener("click", () => ordenarPor("instrumento"));
-cabecalhos[3].addEventListener("click", () => ordenarPor("tipo"));
+cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
+cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
+cabecalhos[3].addEventListener("click", () => ordenarPor("instrumento"));
+cabecalhos[4].addEventListener("click", () => ordenarPor("tipo"));
 
-cabecalhos.forEach((th, index) => { if(index < 4) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
+cabecalhos.forEach((th, index) => { if(index > 0 && index < 5) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
