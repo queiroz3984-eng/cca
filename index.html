@@ -60,11 +60,6 @@ tr.linha-inativo {
 .bloco-instrumento { display: flex; flex-direction: column; gap: 4px; }
 .par-campos { display: inline-block; vertical-align: middle; }
 
-/* Container para a área de inatividade no formulário */
-.container-inativo { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; margin: 5px; }
-.container-inativo input[type="checkbox"] { width: auto; margin: 0; }
-.container-inativo input[type="text"] { width: 150px; padding: 6px; margin: 0; }
-
 /* --- PAINEL DE AÇÕES E GRÁFICO --- */
 .painel-acoes-grafico {
   display: flex;
@@ -235,6 +230,16 @@ tr.linha-inativo {
       <div id="checkboxes-tipos" class="checkboxes-dropdown"></div>
     </div>
 
+    <div class="multiselect">
+      <div class="selectBox">
+        <select id="filtro-status">
+          <option value="todos">Todos los Estados</option>
+          <option value="activos">Solo Activos</option>
+          <option value="inativos">Solo Inactivos</option>
+        </select>
+      </div>
+    </div>
+
   </div>
 
   <div class="painel-acoes-grafico">
@@ -290,11 +295,6 @@ tr.linha-inativo {
 
     <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
 
-    <div class="container-inativo">
-      <label><input type="checkbox" id="inativo"> ¿Inactivo?</label>
-      <input type="text" id="motivoInativo" placeholder="Motivo...">
-    </div>
-
     <button type="submit">Guardar</button>
   </form>
 
@@ -349,8 +349,6 @@ const busca = document.getElementById("busca");
 const btnLimparBusca = document.getElementById("btn-limpar-busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
-const chkInativoForm = document.getElementById("inativo");
-const txtMotivoForm = document.getElementById("motivoInativo");
 
 const containerIgrejas = document.getElementById("checkboxes-igrejas");
 const textoFiltroIgrejas = document.getElementById("texto-filtro-igrejas");
@@ -358,6 +356,7 @@ const containerInstrumentos = document.getElementById("checkboxes-instrumentos")
 const textoFiltroInstrumentos = document.getElementById("texto-filtro-instrumentos");
 const containerTipos = document.getElementById("checkboxes-tipos");
 const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
+const filtroStatus = document.getElementById("filtro-status");
 
 let lista = []; 
 let editKey = null; 
@@ -369,11 +368,6 @@ let ordemCrescente = true;
 
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
-
-chkInativoForm.addEventListener("change", function() {
-  txtMotivoForm.style.display = this.checked ? "inline-block" : "none";
-  if (!this.checked) txtMotivoForm.value = "";
-});
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
@@ -526,6 +520,8 @@ containerTipos.addEventListener("change", () => {
   atualizar();
 });
 
+filtroStatus.addEventListener("change", atualizar);
+
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
   containerSegundoInstrumento.style.display = "inline-block";
 });
@@ -569,8 +565,8 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "), 
     contato: inputContato.value,
-    inativo: chkInativoForm.checked,
-    motivoInativo: chkInativoForm.checked ? txtMotivoForm.value.trim() : ""
+    inativo: false,
+    motivoInativo: ""
   };
 
   const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
@@ -581,7 +577,6 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   push(ref(database, 'musicos'), dados);
   document.getElementById("formMusico").reset();
   containerSegundoInstrumento.style.display = "none";
-  txtMotivoForm.style.display = "none";
 });
 
 /* --- 📊 ATUALIZAÇÃO DO GRÁFICO E LISTAS LATERAIS --- */
@@ -701,6 +696,7 @@ function atualizar(){
   const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
+  const statusSelecionado = filtroStatus.value;
 
   tabela.innerHTML = "";
   const contagemNomes = {};
@@ -712,15 +708,20 @@ function atualizar(){
   });
 
   filtrados = lista
-  .filter(m =>
-    (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-    (tiposSelecionadas.length === 0 || tiposSelecionadas.some(t => m.tipo && m.tipo.includes(t))) &&
-    (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento && m.instrumento.includes(inst))) &&
-    (
-      m.nome.toLowerCase().includes(texto) ||
-      (m.instrumento && m.instrumento.toLowerCase().includes(texto))
-    )
-  )
+  .filter(m => {
+    if (statusSelecionado === "activos" && m.inativo) return false;
+    if (statusSelecionado === "inativos" && !m.inativo) return false;
+
+    return (
+      (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
+      (tiposSelecionadas.length === 0 || tiposSelecionadas.some(t => m.tipo && m.tipo.includes(t))) &&
+      (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento && m.instrumento.includes(inst))) &&
+      (
+        m.nome.toLowerCase().includes(texto) ||
+        (m.instrumento && m.instrumento.toLowerCase().includes(texto))
+      )
+    );
+  })
   .sort((a, b) => {
     let valorA = a[colunaOrdenada] ? a[colunaOrdenada].toLowerCase() : "";
     let valorB = b[colunaOrdenada] ? b[colunaOrdenada].toLowerCase() : "";
@@ -976,6 +977,7 @@ busca.addEventListener("input", atualizar);
 btnLimparBusca.addEventListener("click", () => {
   busca.value = ""; 
   document.querySelectorAll('.chk-igreja, .chk-instrumento, .chk-tipo').forEach(chk => chk.checked = false);
+  filtroStatus.value = "todos";
   textoFiltroIgrejas.textContent = "Todas las Iglesias";
   textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
   textoFiltroTipos.textContent = "Todos los Tipos";
