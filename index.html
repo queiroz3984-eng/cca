@@ -38,20 +38,32 @@ th { background:#0078D4; color:white; }
 .checkboxes-dropdown label:hover { background-color: #0078D4; color: white; }
 .checkboxes-dropdown input { width: auto; margin-right: 10px; vertical-align: middle; }
 
-/* Estilo do botão único alternável no topo do dropdown */
+/* Botão único alternável no topo do dropdown */
 .dropdown-acoes-topo { padding: 4px 12px; border-bottom: 1px dashed #eee; background: #fdfdfd; text-align: center; }
 .btn-alternar-todos { font-size: 11px; text-decoration: none; font-weight: bold; color: #0078D4; display: block; width: 100%; text-align: left; }
 .btn-alternar-todos:hover { text-decoration: underline; }
 
-/* Clase de alerta para destacar filas con datos divergentes o errores */
+/* Classe de alerta para destacar filas com dados divergentes ou erros */
 tr.linha-erro {
   background-color: #ffcccc !important;
   color: #a30000;
 }
 
+/* Linha estilizada para músicos inativos */
+tr.linha-inativo {
+  background-color: #f2f2f2 !important;
+  color: #777777;
+  opacity: 0.8;
+}
+
 /* Divs para agrupar os instrumentos secundários lado a lado ou em bloco */
 .bloco-instrumento { display: flex; flex-direction: column; gap: 4px; }
 .par-campos { display: inline-block; vertical-align: middle; }
+
+/* Container para a área de inatividade no formulário */
+.container-inativo { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; margin: 5px; }
+.container-inativo input[type="checkbox"] { width: auto; margin: 0; }
+.container-inativo input[type="text"] { width: 150px; padding: 6px; margin: 0; }
 
 /* --- PAINEL DE AÇÕES E GRÁFICO --- */
 .painel-acoes-grafico {
@@ -66,11 +78,11 @@ tr.linha-erro {
   box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
 }
 
-/* Gráfico e listas alinhados lado a lado (um ao lado do outro) */
+/* Gráfico e listas alinhados lado a lado */
 .grafico-container {
   display: none; 
   flex: 1;
-  flex-direction: row; /* Coloca o gráfico e as listas lado a lado */
+  flex-direction: row; 
   align-items: flex-start;
   gap: 25px;
 }
@@ -84,7 +96,7 @@ tr.linha-erro {
 /* Painel das duas listas também lado a lado */
 .grafico-listas-painel {
   display: flex;
-  flex-direction: row; /* Mantém as duas colunas de listas lado a lado */
+  flex-direction: row; 
   gap: 20px;
   flex: 1;
 }
@@ -109,10 +121,10 @@ tr.linha-erro {
   padding-bottom: 3px;
 }
 
-/* Itens internos: voltam a quebrar linha e ficam na vertical (um embaixo do outro) */
+/* Itens internos: na vertical */
 .grafico-coluna-lista .lista-itens-vertical {
   display: flex;
-  flex-direction: column; /* Força os itens a ficarem um embaixo do outro */
+  flex-direction: column; 
 }
 
 .grafico-coluna-lista .item-linha {
@@ -278,6 +290,11 @@ tr.linha-erro {
 
     <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
 
+    <div class="container-inativo">
+      <label><input type="checkbox" id="inativo"> ¿Inactivo?</label>
+      <input type="text" id="motivoInativo" placeholder="Motivo...">
+    </div>
+
     <button type="submit">Guardar</button>
   </form>
 
@@ -289,6 +306,7 @@ tr.linha-erro {
   <th>Instrumento</th>
   <th>Tipo</th>
   <th>Contacto</th>
+  <th>Observación</th>
   <th>Acciones</th>
   </tr>
   </thead>
@@ -331,6 +349,8 @@ const busca = document.getElementById("busca");
 const btnLimparBusca = document.getElementById("btn-limpar-busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
+const chkInativoForm = document.getElementById("inativo");
+const txtMotivoForm = document.getElementById("motivoInativo");
 
 const containerIgrejas = document.getElementById("checkboxes-igrejas");
 const textoFiltroIgrejas = document.getElementById("texto-filtro-igrejas");
@@ -349,6 +369,11 @@ let ordemCrescente = true;
 
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
+
+chkInativoForm.addEventListener("change", function() {
+  txtMotivoForm.style.display = this.checked ? "inline-block" : "none";
+  if (!this.checked) txtMotivoForm.value = "";
+});
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
@@ -543,7 +568,9 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     nome: nomeEmCaixaAlta,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "), 
-    contato: inputContato.value
+    contato: inputContato.value,
+    inativo: chkInativoForm.checked,
+    motivoInativo: chkInativoForm.checked ? txtMotivoForm.value.trim() : ""
   };
 
   const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
@@ -554,6 +581,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   push(ref(database, 'musicos'), dados);
   document.getElementById("formMusico").reset();
   containerSegundoInstrumento.style.display = "none";
+  txtMotivoForm.style.display = "none";
 });
 
 /* --- 📊 ATUALIZAÇÃO DO GRÁFICO E LISTAS LATERAIS --- */
@@ -566,18 +594,22 @@ function atualizarGrafico(dadosFiltrados) {
   const contagemIgrejas = {};
   let totalInstrumentos = 0;
 
+  const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
+
   dadosFiltrados.forEach(m => {
-    // 1. Processar Contagem para Instrumentos
+    if (m.inativo) return;
+
     if (m.instrumento) {
       const insts = m.instrumento.split(",").map(i => i.trim());
       insts.forEach(inst => {
         if (inst) {
-          contagemInstrumentos[inst] = (contagemInstrumentos[inst] || 0) + 1;
-          totalInstrumentos++;
+          if (instrumentosSelecionados.length === 0 || instrumentosSelecionados.includes(inst)) {
+            contagemInstrumentos[inst] = (contagemInstrumentos[inst] || 0) + 1;
+            totalInstrumentos++;
+          }
         }
       });
     }
-    // 2. Processar Contagem para Igrejas
     if (m.igreja) {
       contagemIgrejas[m.igreja] = (contagemIgrejas[m.igreja] || 0) + 1;
     }
@@ -587,9 +619,8 @@ function atualizarGrafico(dadosFiltrados) {
   divListaPct.innerHTML = "";
   divListaIgrejas.innerHTML = "";
 
-  if (dadosFiltrados.length === 0) return;
+  if (dadosFiltrados.length === 0 || totalInstrumentos === 0) return;
 
-  // --- Montar e popular lista de Instrumentos por Porcentagem ---
   const labelsInst = Object.keys(contagemInstrumentos);
   const valoresInst = Object.values(contagemInstrumentos);
   const porcentagensInst = valoresInst.map(v => ((v / totalInstrumentos) * 100).toFixed(1));
@@ -609,7 +640,6 @@ function atualizarGrafico(dadosFiltrados) {
     `;
   });
 
-  // --- Montar e popular lista de Igrejas com a Quantidade ao lado ---
   const itensIgrejasOrdenados = Object.keys(contagemIgrejas).map(igrejaNome => ({
     igrejaNome,
     quantidade: contagemIgrejas[igrejaNome]
@@ -624,7 +654,6 @@ function atualizarGrafico(dadosFiltrados) {
     `;
   });
 
-  // --- Renderizar Gráfico de Pizza ---
   meuGrafico = new Chart(ctx, {
     type: 'pie',
     data: {
@@ -701,7 +730,12 @@ function atualizar(){
   filtrados.forEach((m)=>{
     const tr = document.createElement("tr");
     const nomeNormalizado = m.nome ? m.nome.trim().toUpperCase() : "";
-    if (m.invalid || (contagemNomes[nomeNormalizado] > 1)) { tr.classList.add("linha-erro"); }
+    
+    if (m.inativo) {
+      tr.classList.add("linha-inativo");
+    } else if (m.invalid || (contagemNomes[nomeNormalizado] > 1)) { 
+      tr.classList.add("linha-erro"); 
+    }
 
     const insts = m.instrumento ? m.instrumento.split(", ") : [""];
     const tps = m.tipo ? m.tipo.split(", ") : [""];
@@ -737,6 +771,12 @@ function atualizar(){
         </td>
         <td><input type="text" class="edit-contato" value="${m.contato}" style="width:90%; padding:4px;" required></td>
         <td>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px;"><input type="checkbox" class="edit-inativo" ${m.inativo ? 'checked' : ''}> Inativo</label>
+            <input type="text" class="edit-motivo" value="${m.motivoInativo || ''}" placeholder="Motivo..." style="font-size:11px; padding:2px; ${m.inativo ? '' : 'display:none;'}">
+          </div>
+        </td>
+        <td>
           <button class="btn-salvar-inline" title="Guardar">💾</button>
           <button class="btn-cancelar-inline" title="Cancelar">❌</button>
         </td>
@@ -745,11 +785,18 @@ function atualizar(){
       const btnMais = tr.querySelector(".btn-edit-mais");
       const selectInst2 = tr.querySelector(".edit-inst2");
       const selectTipo2 = tr.querySelector(".edit-tipo2");
+      const chkEditInativo = tr.querySelector(".edit-inativo");
+      const txtEditMotivo = tr.querySelector(".edit-motivo");
       
       btnMais.addEventListener("click", () => {
         selectInst2.style.display = "block";
         selectTipo2.style.display = "block";
         btnMais.style.display = "none";
+      });
+
+      chkEditInativo.addEventListener("change", () => {
+        txtEditMotivo.style.display = chkEditInativo.checked ? "block" : "none";
+        if (!chkEditInativo.checked) txtEditMotivo.value = "";
       });
 
       aplicarMascaraContato(tr.querySelector(".edit-contato"));
@@ -766,12 +813,17 @@ function atualizar(){
         }
       });
 
+      let htmlInativo = m.inativo 
+        ? `❌ Inactivo <span style="font-size:11px; display:inline-block; color:#cc0000; margin-left:5px;">- ${m.motivoInativo || 'Sin Motivo'}</span>` 
+        : '✅ Activo';
+
       tr.innerHTML = `
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
         <td>${htmlInstrumentos}</td>
         <td>${htmlTipos}</td>
         <td>${m.contato}</td>
+        <td>${htmlInativo}</td>
         <td>
           <button class="btn-editar">✏️</button>
           <button class="btn-excluir">🗑️</button>
@@ -783,7 +835,7 @@ function atualizar(){
     tabela.appendChild(tr);
   });
 
-  contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s)</strong>`;
+  contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s) filtrado(s)</strong>`;
   const container = document.getElementById("grafico-container");
   if (container.style.display === "flex") { atualizarGrafico(filtrados); }
 }
@@ -791,6 +843,7 @@ function atualizar(){
 function editar(key){ editKey = key; atualizar(); }
 function cancelarEdicao() { editKey = null; atualizar(); }
 
+/* --- FUNÇÃO AJUSTADA COM ATUALIZAÇÃO IMEDIATA DO COORDENADOR --- */
 function salvarInline(key, tr) {
   const nomeNovo = tr.querySelector(".edit-nome").value.trim().toUpperCase();
   const contatoNovo = tr.querySelector(".edit-contato").value.trim();
@@ -800,6 +853,8 @@ function salvarInline(key, tr) {
   const selectInst2 = tr.querySelector(".edit-inst2");
   const tp1 = tr.querySelector(".edit-tipo1").value;
   const selectTipo2 = tr.querySelector(".edit-tipo2");
+  const chkInativo = tr.querySelector(".edit-inativo").checked;
+  const txtMotivo = tr.querySelector(".edit-motivo").value.trim();
 
   let instrumentosFinal = [inst1];
   let tiposFinal = [tp1];
@@ -814,18 +869,23 @@ function salvarInline(key, tr) {
     nome: nomeNovo,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "),
-    contato: contatoNovo
+    contato: contatoNovo,
+    inativo: chkInativo,
+    motivoInativo: chkInativo ? txtMotivo : ""
   };
 
-  set(ref(database, 'musicos/' + key), dados).then(() => { editKey = null; }).catch((e) => console.error(e));
+  set(ref(database, 'musicos/' + key), dados).then(() => { 
+    editKey = null; 
+    atualizar(); // Força o redesenho imediato no formato padrão
+  }).catch((e) => console.error(e));
 }
 
 function excluir(key){ if(confirm("¿Realmente deseja eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
 
 document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
-  let csvContent = "Iglesia;Nombre;Instrumento;Tipo;Contacto\n";
-  filtrados.forEach(m => { csvContent += [m.igreja, m.nome, m.instrumento, m.tipo, m.contato].join(";") + "\n"; });
+  let csvContent = "Iglesia;Nombre;Instrumento;Tipo;Contacto;Inativo;Motivo\n";
+  filtrados.forEach(m => { csvContent += [m.igreja, m.nome, m.instrumento, m.tipo, m.contato, m.inativo ? 'SI' : 'NO', m.motivoInativo || ''].join(";") + "\n"; });
   const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -852,6 +912,8 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
         const instrumentoImportar = campos[2].trim().toUpperCase();
         const tipoImportar = campos[3].trim().toUpperCase();
         const contatoImportar = campos[4].trim().toUpperCase();
+        const inativoImportar = campos[5] ? campos[5].trim().toUpperCase() === 'SI' : false;
+        const motivoImportar = campos[6] ? campos[6].trim() : "";
 
         const chaveComposta = `${nomeImportar}|${igrejaImportar}`;
         const jaExisteNoFirebase = lista.some(m => m.nome.toUpperCase() === nomeImportar && m.igreja.toUpperCase() === igrejaImportar);
@@ -864,7 +926,15 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
         const instsImportados = instrumentoImportar.split(",").map(x => x.trim());
         const instrumentosValidos = instsImportados.every(inst => instrumentos.map(x => x.toUpperCase()).includes(inst));
 
-        let dados = { igreja: igrejaImportar, nome: nomeImportar, instrumento: instrumentoImportar, tipo: tipoImportar, contato: contatoImportar };
+        let dados = { 
+          igreja: igrejaImportar, 
+          nome: nomeImportar, 
+          instrumento: instrumentoImportar, 
+          tipo: tipoImportar, 
+          contato: contatoImportar,
+          inativo: inativoImportar,
+          motivoInativo: motivoImportar
+        };
         if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
         push(ref(database, 'musicos'), dados);
       }
