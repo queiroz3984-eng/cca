@@ -182,6 +182,7 @@ tr.linha-inativo {
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 </head>
 <body>
@@ -883,15 +884,40 @@ function salvarInline(key, tr) {
 
 function excluir(key){ if(confirm("¿Realmente deseja eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
 
+/* --- 📊 EXPORTAÇÃO CORRIGIDA PARA CORRER EM XLSX REAL --- */
 document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
-  let csvContent = "Iglesia;Nombre;Instrumento;Tipo;Contacto;Inativo;Motivo\n";
-  filtrados.forEach(m => { csvContent += [m.igreja, m.nome, m.instrumento, m.tipo, m.contato, m.inativo ? 'SI' : 'NO', m.motivoInativo || ''].join(";") + "\n"; });
-  const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url); link.setAttribute("download", "Registro_de_Musicos_CCA.csv");
-  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  
+  // Monta a estrutura de matriz de dados (Headers + Conteúdo)
+  const dadosExcel = [
+    ["Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo"]
+  ];
+
+  filtrados.forEach(m => {
+    dadosExcel.push([
+      m.igreja, 
+      m.nome, 
+      m.instrumento, 
+      m.tipo, 
+      m.contato, 
+      m.inativo ? 'SI' : 'NO', 
+      m.motivoInativo || ''
+    ]);
+  });
+
+  // Transforma em planilha do SheetJS
+  const worksheet = XLSX.utils.aoa_to_sheet(dadosExcel);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Músicos");
+
+  // Adiciona metadados estruturais simples para garantir que o Excel confie no arquivo
+  workbook.Props = {
+    Title: "Registro de Musicos CCA",
+    CreatedDate: new Date()
+  };
+
+  // Executa o download gerando um binário zip legítimo de extensão .xlsx
+  XLSX.writeFile(workbook, "Registro_de_Musicos_CCA.xlsx", { bookType: 'xlsx', type: 'array' });
 });
 
 document.getElementById("btn-clique-importar").addEventListener("click", () => { document.getElementById("inputImportar").click(); });
