@@ -358,7 +358,6 @@ provinciaSelect.innerHTML = `<option value="">Provincia</option>`;
 provincias.forEach(p => { provinciaSelect.innerHTML += `<option value="${p}">${p}</option>`; });
 igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
 carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
-let ultimaEscuelaAutomatica = "";
 
 // Evento cascada para el formulario principal
 provinciaSelect.addEventListener("change", (e) => {
@@ -368,13 +367,6 @@ provinciaSelect.addEventListener("change", (e) => {
     provinciasEIgrejas[prov].forEach(i => {
       igrejaSelect.innerHTML += `<option value="${i}">${i}</option>`;
     });
-  }
-});
-
-igrejaSelect.addEventListener("change", () => {
-  if (!escuelaMusicaSelect.value || escuelaMusicaSelect.value === ultimaEscuelaAutomatica) {
-    escuelaMusicaSelect.value = igrejaSelect.value;
-    ultimaEscuelaAutomatica = igrejaSelect.value;
   }
 });
 
@@ -622,7 +614,6 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   document.getElementById("formMusico").reset();
   igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
 carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
-  ultimaEscuelaAutomatica = ""; // Reset select iglesias
   escuelaMusicaSelect.disabled = false;
   containerSegundoInstrumento.style.display = "none";
 });
@@ -741,7 +732,7 @@ document.getElementById("btn-toggle-grafico").addEventListener("click", function
 
 function obterEscuelaMusica(m) {
   if (m && tipoDispensaEscuelaMusica(m.tipo)) return "-";
-  return (m && (m.escuelaMusica || m.escolaMusica || m.igreja)) || "";
+  return (m && (m.escuelaMusica || m.escolaMusica)) || "";
 }
 
 function obterValorOrdenacao(m, coluna) {
@@ -883,10 +874,6 @@ function atualizar(){
         }
       });
       
-      selEditIg.addEventListener("change", () => {
-        if (selEditEscuela && !selEditEscuela.value) selEditEscuela.value = selEditIg.value || "";
-      });
-
       btnMais.addEventListener("click", () => {
         selectInst2.style.display = "block";
         selectTipo2.style.display = "block";
@@ -972,7 +959,7 @@ function salvarInline(key, tr) {
   const dados = {
     provincia: provinciaNova,
     igreja: igrejaNova,
-    escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : (escuelaMusicaNova || igrejaNova),
+    escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : escuelaMusicaNova,
     nome: nomeNovo,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "),
@@ -1088,7 +1075,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       let dados = { 
         provincia: provinciaImportar,
         igreja: getVal(idxIgreja), 
-        escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : (getVal(idxEscuelaMusica) || getVal(idxIgreja)),
+        escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : getVal(idxEscuelaMusica),
         nome: nomeImportar, 
         instrumento: getVal(idxInstrumento), 
         tipo: getVal(idxTipo), 
