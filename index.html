@@ -15,21 +15,6 @@ th, td { padding:10px; border:1px solid #ccc; }
 th { background:#0078D4; color:white; }
 .logo-topo { position: absolute; top: 50px; right: 50px; width: 200px; }
 
-/* Botões da tabela */
-.btn-editar, .btn-excluir, .btn-whatsapp { 
-  padding: 5px 8px; 
-  font-size: 14px; 
-  text-decoration: none; 
-  display: inline-block; 
-  border-radius: 4px;
-}
-.btn-whatsapp { background: #25D366; color: white; border: none; cursor: pointer; margin-right: 3px; }
-.btn-whatsapp:hover { background: #128C7E; }
-
-/* Botão de Envio em Lote */
-.btn-whatsapp-lote { background: #25D366; color: white; font-weight: bold; padding: 10px 15px; border-radius: 5px; font-size: 14px; margin-bottom: 15px; display: inline-flex; align-items: center; gap: 8px; }
-.btn-whatsapp-lote:hover { background: #128C7E; }
-
 /* Container da busca e botão limpar */
 .busca-container { display: flex; align-items: center; margin-bottom: 15px; gap: 5px; }
 #busca { width:250px; padding:10px; margin: 0; }
@@ -197,7 +182,6 @@ tr.linha-inativo {
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 </head>
 <body>
@@ -280,10 +264,10 @@ tr.linha-inativo {
     <div class="coluna-direita-acoes">
       <div id="contador"><strong>Total: 0 músico(s)</strong></div>
       <div class="botoes-acao">
-        <input type="file" id="inputImportar" accept=".csv" style="display: none;">
+        <input type="file" id="inputImportar" accept=".xml" style="display: none;">
         <button type="button" class="btn-excluir-tudo" id="btn-excluir-tudo">🚨 Eliminar Todo</button>
-        <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar CSV</button>
-        <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar Excel</button>
+        <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar XML</button>
+        <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XML</button>
         <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico">📊 Mostrar Gráfico</button>
       </div>
     </div>
@@ -314,14 +298,9 @@ tr.linha-inativo {
     <button type="submit">Guardar</button>
   </form>
 
-  <div>
-    <button type="button" class="btn-whatsapp-lote" id="btn-enviar-selecionados">💬 Enviar WhatsApp a Seleccionados</button>
-  </div>
-
   <table>
   <thead>
   <tr>
-  <th style="width: 30px; cursor: default;"><input type="checkbox" id="selecionar-todos-tabela" title="Seleccionar/Desmarcar todos los visibles"></th>
   <th>Iglesia</th>
   <th>Nombre</th>
   <th>Instrumento</th>
@@ -378,7 +357,6 @@ const textoFiltroInstrumentos = document.getElementById("texto-filtro-instrument
 const containerTipos = document.getElementById("checkboxes-tipos");
 const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
 const filtroStatus = document.getElementById("filtro-status");
-const chkSelecionarTodosTabela = document.getElementById("selecionar-todos-tabela");
 
 let lista = []; 
 let editKey = null; 
@@ -713,21 +691,12 @@ document.getElementById("btn-toggle-grafico").addEventListener("click", function
   }
 });
 
-/* Listener para marcar ou desmarcar todos os checkboxes da tabela */
-chkSelecionarTodosTabela.addEventListener("change", function() {
-  const checkboxesMesa = document.querySelectorAll(".chk-musico-tabela");
-  checkboxesMesa.forEach(cb => cb.checked = this.checked);
-});
-
 function atualizar(){
   const texto = busca.value.toLowerCase();
   const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
   const statusSelecionado = filtroStatus.value;
-
-  // Desmarca a seleção geral quando reconstrói a lista filtrada
-  chkSelecionarTodosTabela.checked = false;
 
   tabela.innerHTML = "";
   const contagemNomes = {};
@@ -772,8 +741,6 @@ function atualizar(){
     const insts = m.instrumento ? m.instrumento.split(", ") : [""];
     const tps = m.tipo ? m.tipo.split(", ") : [""];
 
-    const numeroLimpo = m.contato ? m.contato.replace(/\D/g, '') : '';
-
     if (editKey === m.key) {
       const optionsIgrejas = igrejas.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
@@ -782,7 +749,6 @@ function atualizar(){
       const optionsTipo2 = tipos.map(t => `<option value="${t}" ${t === tps[1] ? 'selected' : ''}>${t}</option>`).join('');
 
       tr.innerHTML = `
-        <td></td>
         <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
         <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
         <td>
@@ -853,7 +819,6 @@ function atualizar(){
         : '✅ Activo';
 
       tr.innerHTML = `
-        <td style="text-align: center;"><input type="checkbox" class="chk-musico-tabela" value="${numeroLimpo}"></td>
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
         <td>${htmlInstrumentos}</td>
@@ -861,7 +826,6 @@ function atualizar(){
         <td>${m.contato}</td>
         <td>${htmlInativo}</td>
         <td>
-          <a href="https://wa.me/${numeroLimpo}" target="_blank" class="btn-whatsapp" title="Enviar WhatsApp">💬</a>
           <button class="btn-editar">✏️</button>
           <button class="btn-excluir">🗑️</button>
         </td>
@@ -877,39 +841,9 @@ function atualizar(){
   if (container.style.display === "flex") { atualizarGrafico(filtrados); }
 }
 
-/* Função para Processar Envios em Massa/Múltiplos */
-document.getElementById("btn-enviar-selecionados").addEventListener("click", () => {
-  const selecionados = document.querySelectorAll(".chk-musico-tabela:checked");
-  
-  if (selecionados.length === 0) {
-    alert("Por favor, seleccione al menos un músico de la lista.");
-    return;
-  }
-
-  // Se for apenas 1, abre direto
-  if (selecionados.length === 1) {
-    window.open(`https://wa.me/${selecionados[0].value}`, '_blank');
-    return;
-  }
-
-  // Se forem vários, o navegador tentará bloquear múltiplos pop-ups se abertos em um laço rápido.
-  // Abrimos uma confirmação clara informando ao usuário.
-  if (confirm(`Va a abrir ${selecionados.length} chats de WhatsApp. ¿Desea continuar? (Asegúrese de permitir las ventanas emergentes/popups en su navegador)`)) {
-    selecionados.forEach((chk, index) => {
-      // Pequeno atraso (delay) artificial para mitigar o bloqueio do navegador
-      setTimeout(() => {
-        if (chk.value) {
-          window.open(`https://wa.me/${chk.value}`, '_blank');
-        }
-      }, index * 400); 
-    });
-  }
-});
-
 function editar(key){ editKey = key; atualizar(); }
 function cancelarEdicao() { editKey = null; atualizar(); }
 
-/* --- FUNÇÃO AJUSTADA COM ATUALIZAÇÃO IMEDIATA DO COORDENADOR --- */
 function salvarInline(key, tr) {
   const nomeNovo = tr.querySelector(".edit-nome").value.trim().toUpperCase();
   const contatoNovo = tr.querySelector(".edit-contato").value.trim();
@@ -942,89 +876,121 @@ function salvarInline(key, tr) {
 
   set(ref(database, 'musicos/' + key), dados).then(() => { 
     editKey = null; 
-    atualizar(); 
+    atualizar();
   }).catch((e) => console.error(e));
 }
 
 function excluir(key){ if(confirm("¿Realmente deseja eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
 
-/* --- 📊 EXPORTAÇÃO CORRIGIDA PARA CORRER EM XLSX REAL --- */
+/* --- NOVA FUNÇÃO DE EXPORTAÇÃO PARA XML --- */
 document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
-  const dadosExcel = [
-    ["Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo"]
-  ];
-
+  let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n<musicos>\n';
+  
   filtrados.forEach(m => {
-    dadosExcel.push([
-      m.igreja, 
-      m.nome, 
-      m.instrumento, 
-      m.tipo, 
-      m.contato, 
-      m.inativo ? 'SI' : 'NO', 
-      m.motivoInativo || ''
-    ]);
+    xmlContent += '  <musico>\n';
+    xmlContent += `    <igreja>${escapeXml(m.igreja)}</igreja>\n`;
+    xmlContent += `    <nome>${escapeXml(m.nome)}</nome>\n`;
+    xmlContent += `    <instrumento>${escapeXml(m.instrumento)}</instrumento>\n`;
+    xmlContent += `    <tipo>${escapeXml(m.tipo)}</tipo>\n`;
+    xmlContent += `    <contato>${escapeXml(m.contato)}</contato>\n`;
+    xmlContent += `    <inativo>${m.inativo ? 'SI' : 'NO'}</inativo>\n`;
+    xmlContent += `    <motivoInativo>${escapeXml(m.motivoInativo || '')}</motivoInativo>\n`;
+    xmlContent += '  </musico>\n';
   });
-
-  const worksheet = XLSX.utils.aoa_to_sheet(dadosExcel);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Músicos");
-
-  workbook.Props = {
-    Title: "Registro de Musicos CCA",
-    CreatedDate: new Date()
-  };
-
-  XLSX.writeFile(workbook, "Registro_de_Musicos_CCA.xlsx", { bookType: 'xlsx', type: 'array' });
+  
+  xmlContent += '</musicos>';
+  
+  const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url); 
+  link.setAttribute("download", "Registro_de_Musicos_CCA.xml");
+  document.body.appendChild(link); 
+  link.click(); 
+  document.body.removeChild(link);
 });
+
+// Auxiliar para evitar quebra de tags XML por caracteres especiais
+function escapeXml(unsafe) {
+  if (!unsafe) return "";
+  return unsafe.replace(/[<>&'"]/g, function (c) {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+    }
+  });
+}
 
 document.getElementById("btn-clique-importar").addEventListener("click", () => { document.getElementById("inputImportar").click(); });
 
+/* --- NOVA FUNÇÃO DE IMPORTAÇÃO DE XML --- */
 document.getElementById("inputImportar").addEventListener("change", (event) => {
   const archivo = event.target.files[0]; if (!archivo) return;
   const lector = new FileReader();
+  
   lector.onload = function(e) {
-    const contenido = e.target.result; const lineas = contenido.split(/\r?\n/);
-    if (lineas.length <= 1 || lineas[0].trim() === "") { alert("El archivo no es válido."); return; }
-    const processadosNoCsv = new Set();
+    const contenido = e.target.result;
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(contenido, "text/xml");
+    
+    // Verifica se houve erro de parse no XML
+    if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+      alert("El arquivo XML no é válido.");
+      return;
+    }
 
-    for (let i = 1; i < lineas.length; i++) {
-      const linea = lineas[i].trim(); if (linea === "") continue; 
-      const campos = linea.split(";");
-      if (campos.length >= 5) {
-        const igrejaImportar = campos[0].trim().toUpperCase();
-        const nomeImportar = campos[1].trim().toUpperCase();
-        const instrumentoImportar = campos[2].trim().toUpperCase();
-        const tipoImportar = campos[3].trim().toUpperCase();
-        const contatoImportar = campos[4].trim().toUpperCase();
-        const inativoImportar = campos[5] ? campos[5].trim().toUpperCase() === 'SI' : false;
-        const motivoImportar = campos[6] ? campos[6].trim() : "";
+    const musicosNodes = xmlDoc.getElementsByTagName("musico");
+    if (musicosNodes.length === 0) { alert("No se encontraron registros de músicos no arquivo XML."); return; }
+    
+    const processadosNoXml = new Set();
 
-        const chaveComposta = `${nomeImportar}|${igrejaImportar}`;
-        const jaExisteNoFirebase = lista.some(m => m.nome.toUpperCase() === nomeImportar && m.igreja.toUpperCase() === igrejaImportar);
-        if (processadosNoCsv.has(chaveComposta) || jaExisteNoFirebase) { continue; }
-        processadosNoCsv.add(chaveComposta);
+    for (let i = 0; i < musicosNodes.length; i++) {
+      const node = musicosNodes[i];
+      
+      const getVal = (tagName) => {
+        const el = node.getElementsByTagName(tagName)[0];
+        return el ? el.textContent.trim() : "";
+      };
 
-        const igrejaValida = igrejas.map(x => x.toUpperCase()).includes(igrejaImportar);
-        const tpsImportados = tipoImportar.split(",").map(x => x.trim());
-        const tipoValido = tpsImportados.every(t => tipos.map(x => x.toUpperCase()).includes(t));
-        const instsImportados = instrumentoImportar.split(",").map(x => x.trim());
-        const instrumentosValidos = instsImportados.every(inst => instrumentos.map(x => x.toUpperCase()).includes(inst));
+      const igrejaImportar = getVal("igreja").toUpperCase();
+      const nomeImportar = getVal("nome").toUpperCase();
+      const instrumentoImportar = getVal("instrumento").toUpperCase();
+      const tipoImportar = getVal("tipo").toUpperCase();
+      const contatoImportar = getVal("contato").toUpperCase();
+      const inativoImportar = getVal("inativo") === 'SI';
+      const motivoImportar = getVal("motivoInativo");
 
-        let dados = { 
-          igreja: igrejaImportar, 
-          nome: nomeImportar, 
-          instrumento: instrumentoImportar, 
-          tipo: tipoImportar, 
-          contato: contatoImportar,
-          inativo: inativoImportar,
-          motivoInativo: motivoImportar
-        };
-        if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
-        push(ref(database, 'musicos'), dados);
-      }
+      if (!nomeImportar || !igrejaImportar) continue;
+
+      const chaveComposta = `${nomeImportar}|${igrejaImportar}`;
+      const jaExisteNoFirebase = lista.some(m => m.nome.toUpperCase() === nomeImportar && m.igreja.toUpperCase() === igrejaImportar);
+      
+      if (processadosNoXml.has(chaveComposta) || jaExisteNoFirebase) { continue; }
+      processadosNoXml.add(chaveComposta);
+
+      const igrejaValida = igrejas.map(x => x.toUpperCase()).includes(igrejaImportar);
+      const tpsImportados = tipoImportar.split(",").map(x => x.trim());
+      const tipoValido = tpsImportados.every(t => tipos.map(x => x.toUpperCase()).includes(t));
+      const instsImportados = instrumentoImportar.split(",").map(x => x.trim());
+      const instrumentosValidos = instsImportados.every(inst => instrumentos.map(x => x.toUpperCase()).includes(inst));
+
+      let dados = { 
+        igreja: getVal("igreja"), // Mantém a grafia original para salvar
+        nome: nomeImportar, 
+        instrumento: getVal("instrumento"), 
+        tipo: getVal("tipo"), 
+        contato: getVal("contato"),
+        inativo: inativoImportar,
+        motivoInativo: motivoImportar
+      };
+      
+      if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
+      push(ref(database, 'musicos'), dados);
     }
     alert(`Importación finalizada.`); event.target.value = '';
   };
@@ -1052,12 +1018,12 @@ function ordenarPor(coluna) {
   atualizar();
 }
 const cabecalhos = document.querySelectorAll("table th");
-cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
-cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
-cabecalhos[3].addEventListener("click", () => ordenarPor("instrumento"));
-cabecalhos[4].addEventListener("click", () => ordenarPor("tipo"));
+cabecalhos[0].addEventListener("click", () => ordenarPor("igreja"));
+cabecalhos[1].addEventListener("click", () => ordenarPor("nome"));
+cabecalhos[2].addEventListener("click", () => ordenarPor("instrumento"));
+cabecalhos[3].addEventListener("click", () => ordenarPor("tipo"));
 
-cabecalhos.forEach((th, index) => { if(index > 0 && index < 5) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
+cabecalhos.forEach((th, index) => { if(index < 4) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
