@@ -44,132 +44,42 @@ th { background:#0078D4; color:white; }
 .btn-alternar-todos:hover { text-decoration: underline; }
 
 /* Classe de alerta para destacar filas com dados divergentes ou erros */
-tr.linha-erro {
-  background-color: #ffcccc !important;
-  color: #a30000;
-}
+tr.linha-erro { background-color: #ffcccc !important; color: #a30000; }
 
 /* Linha estilizada para músicos inativos */
-tr.linha-inativo {
-  background-color: #f2f2f2 !important;
-  color: #777777;
-  opacity: 0.8;
-}
+tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity: 0.8; }
 
 /* Divs para agrupar os instrumentos secundários lado a lado ou em bloco */
 .bloco-instrumento { display: flex; flex-direction: column; gap: 4px; }
 .par-campos { display: inline-block; vertical-align: middle; }
 
 /* --- PAINEL DE AÇÕES E GRÁFICO --- */
-.painel-acoes-grafico {
-  display: flex;
-  align-items: flex-start; 
-  justify-content: flex-end; 
-  gap: 30px;
-  margin-bottom: 20px;
-  background: #fff;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
-}
+.painel-acoes-grafico { display: flex; align-items: flex-start; justify-content: flex-end; gap: 30px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
 
 /* Gráfico e listas alinhados lado a lado */
-.grafico-container {
-  display: none; 
-  flex: 1;
-  flex-direction: row; 
-  align-items: flex-start;
-  gap: 25px;
-}
-
-.canvas-wrapper {
-  max-width: 180px;
-  width: 180px;
-  flex-shrink: 0;
-}
+.grafico-container { display: none; flex: 1; flex-direction: row; align-items: flex-start; gap: 25px; }
+.canvas-wrapper { max-width: 180px; width: 180px; flex-shrink: 0; }
 
 /* Painel das duas listas também lado a lado */
-.grafico-listas-painel {
-  display: flex;
-  flex-direction: row; 
-  gap: 20px;
-  flex: 1;
-}
+.grafico-listas-painel { display: flex; flex-direction: row; gap: 20px; flex: 1; }
 
 /* Cada coluna de lista se expande individualmente */
-.grafico-coluna-lista {
-  font-size: 12px;
-  max-height: 180px;
-  overflow-y: auto;
-  flex: 1;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
-  padding: 8px;
-  background: #fafafa;
-}
-
-.grafico-coluna-lista h4 {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  color: #0078D4;
-  border-bottom: 2px solid #0078D4;
-  padding-bottom: 3px;
-}
+.grafico-coluna-lista { font-size: 12px; max-height: 180px; overflow-y: auto; flex: 1; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px; background: #fafafa; }
+.grafico-coluna-lista h4 { margin: 0 0 8px 0; font-size: 13px; color: #0078D4; border-bottom: 2px solid #0078D4; padding-bottom: 3px; }
 
 /* Itens internos: na vertical */
-.grafico-coluna-lista .lista-itens-vertical {
-  display: flex;
-  flex-direction: column; 
-}
-
-.grafico-coluna-lista .item-linha {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-  border-bottom: 1px dashed #eee;
-}
-.grafico-coluna-lista .item-nome {
-  font-weight: bold;
-  color: #333;
-}
-.grafico-coluna-lista .item-valor {
-  color: #0078D4;
-  font-weight: bold;
-}
+.grafico-coluna-lista .lista-itens-vertical { display: flex; flex-direction: column; }
+.grafico-coluna-lista .item-linha { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #eee; }
+.grafico-coluna-lista .item-nome { font-weight: bold; color: #333; }
+.grafico-coluna-lista .item-valor { color: #0078D4; font-weight: bold; }
 
 /* Coluna de ações na horizontal */
-.coluna-direita-acoes {
-  display: flex;
-  flex-direction: column; 
-  align-items: flex-end;
-  gap: 15px;
-}
-
-#contador {
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.botoes-acao {
-  display: flex;
-  flex-direction: row; 
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
+.coluna-direita-acoes { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; }
+#contador { font-size: 14px; white-space: nowrap; }
+.botoes-acao { display: flex; flex-direction: row; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* Botões menores e compactos */
-.botoes-acao button {
-  padding: 8px 12px; 
-  font-size: 12px;
-  font-weight: bold;
-  border: none;
-  cursor: pointer;
-  border-radius: 4px;
-  text-align: center;
-  box-sizing: border-box;
-  white-space: nowrap;
-}
+.botoes-acao button { padding: 8px 12px; font-size: 12px; font-weight: bold; border: none; cursor: pointer; border-radius: 4px; text-align: center; box-sizing: border-box; white-space: nowrap; }
 
 .btn-excel { background: #107C41; color: white; }
 .btn-excel:hover { background: #0b592e; }
@@ -344,8 +254,32 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-const igrejas = ["Común Congregación","ALTO MERLO","BELLA VISTA","CAPITAL","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
-const provincias = ["CABA", "GRAN BUENOS AIRES", "INTERIOR", "CHACO", "CÓRDOBA", "CORRIENTES", "ENTRE RÍOS", "FORMOSA", "JUJUY", "MENDOZA", "MISIONES", "NEUQUÉN", "RÍO NEGRO", "SALTA", "SAN LUIS", "SANTA FE"];
+// Nuevo diccionario extraído de tu Excel
+const provinciasEIgrejas = {
+  "CABA": ["CAPITAL"],
+  "CHACO": ["LA CLOTILDE", "RESISTENCIA", "SAN BERNARDO"],
+  "CORRIENTES": ["COLONIA CARLOS PELLEGRINI", "PASO DE LOS LIBRES"],
+  "CÓRDOBA": ["ANISACATE", "CÓRDOBA", "MONTE BUEY"],
+  "ENTRE RÍOS": ["CONCORDIA", "GUALEGUAY", "GUALEGUAYCHÚ BARRIO NORTE", "GUALEGUAYCHÚ CENTRO", "UBAJAY", "ÑANCAY"],
+  "FORMOSA": ["CLORINDA", "COLONIA PRIMAVERA", "ESPINILLO", "FORMOSA CENTRO", "FORMOSA EL PALOMAR", "GENERAL BELGRANO", "LAGUNA BLANCA", "MISIÓN TACAAGLE", "POZO DE NAVAGAN"],
+  "GRAN BUENOS AIRES": ["BELLA VISTA", "CARLOS SPEGAZZINI", "CASEROS", "CLAYPOLE", "DOMSELAAR", "GENERAL PACHECO", "GREGORIO DE LAFERRERE", "GUERNICA", "GUERNICA LOMAS", "JOSÉ CLEMENTE PAZ", "MERLO NORTE", "MERLO PARQUE SAN MARTÍN", "MORENO", "SANTA BRÍGIDA", "SARANDI", "VILLA LYNCH", "VILLA TORO", "ZÁRATE"],
+  "INTERIOR": ["CORONEL VIDAL", "DOLORES", "GENERAL MADARIAGA", "GOBERNADOR CASTRO", "LA EMILIA", "MAIPÚ", "MAR DEL PLATA", "PÉREZ MILLÁN", "RAMALLO", "SALTO", "SAN NICOLÁS CENTRO", "SAN NICOLÁS PLASTIVERSAL", "SAN PEDRO", "VILLA CAMPI"],
+  "JUJUY": ["FRAILE PINTADO", "LIBERTADOR GENERAL SAN MARTÍN", "SAN PEDRO"],
+  "MENDOZA": ["JESÚS NAZARENO", "MAIPÚ"],
+  "MISIONES": ["ALBA POSSE", "ARISTÓBULO DEL VALLE", "CAMPO GRANDE", "COLONIA DELICIA", "COMANDANTE ANDRESITO 20 DE JUNIO", "COMANDANTE ANDRESITO QUINTAS ALTAS", "EL SOBERBIO", "ELDORADO", "GARUHAPE", "GARUPA", "LEANDRO NICÉFORO ALEM", "PARAJE CAPITÁN PEDRO GIACHINO", "POSADAS", "PUERTO ESPERANZA", "PUERTO IGUAZÚ 1° DE MAYO", "PUERTO IGUAZÚ 2000 HECTÁREAS", "PUERTO IGUAZÚ CENTRO", "PUERTO IGUAZÚ LAS ORQUIDEAS", "SAN ANTONIO", "SAN VICENTE", "TOBUNA", "WANDA"],
+  "NEUQUÉN": ["CUTRAL CO", "NEUQUÉN", "PICUN LEUFÚ", "PLAZA HUINCUL", "PLOTTIER", "ZAPALA"],
+  "RÍO NEGRO": ["EL BOLSÓN", "GENERAL ROCA", "LUIS BELTRÁN"],
+  "SALTA": ["SALTA (LIBERTAD)", "SALTA (SAN JOSÉ)"],
+  "SAN LUIS": ["CONCARÁN", "SAN LUIS", "VILLA LARCA"],
+  "SANTA FE": ["ARROYO SECO", "LA CAROLINA", "LAS ROSAS", "ROSARIO MATHEU", "ROSARIO TRIANGULO", "VILLA CONSTITUCIÓN"]
+};
+
+// Generar las listas
+const provincias = Object.keys(provinciasEIgrejas).sort();
+let igrejas = [];
+provincias.forEach(p => { igrejas = igrejas.concat(provinciasEIgrejas[p]); });
+igrejas = [...new Set(igrejas)].sort(); // Remover duplicados y ordenar
+
 const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBÓN","BOMBARDINO","TUBA"];
 const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
 
@@ -415,9 +349,21 @@ document.getElementById("btn-entrar").addEventListener("click", () => {
   });
 });
 
-igrejas.forEach(i=>{ igrejaSelect.innerHTML += `<option>${i}</option>`; });
+// Inicialización de selects en el formulario
 provinciaSelect.innerHTML = `<option value="">Provincia</option>`;
-provincias.forEach(p=>{ provinciaSelect.innerHTML += `<option>${p}</option>`; });
+provincias.forEach(p => { provinciaSelect.innerHTML += `<option value="${p}">${p}</option>`; });
+igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
+
+// Evento cascada para el formulario principal
+provinciaSelect.addEventListener("change", (e) => {
+  const prov = e.target.value;
+  igrejaSelect.innerHTML = `<option value="">Iglesia</option>`;
+  if (prov && provinciasEIgrejas[prov]) {
+    provinciasEIgrejas[prov].forEach(i => {
+      igrejaSelect.innerHTML += `<option value="${i}">${i}</option>`;
+    });
+  }
+});
 
 instrumento1.innerHTML = `<option value="">Instrumento 1</option>`;
 instrumento2.innerHTML = `<option value="">Instrumento 2 (Opcional)</option>`;
@@ -537,8 +483,26 @@ function pegarValoresSelecionados(className) {
 containerProvincias.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-provincia");
   textoFiltroProvincias.textContent = sel.length === 0 ? "Todas las Provincias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  
+  // Recortar la lista de iglesias en el filtro cuando cambia la provincia
+  const igrejasParaFiltrar = sel.length === 0 ? igrejas : sel.flatMap(p => provinciasEIgrejas[p] || []);
+  const selecionadasAntes = pegarValoresSelecionados("chk-igreja");
+  
+  containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
+  
+  igrejasParaFiltrar.sort().forEach(ig => {
+    const isChecked = selecionadasAntes.includes(ig) ? "checked" : "";
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja" ${isChecked}> ${ig}`;
+    containerIgrejas.appendChild(label);
+  });
+  
+  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
+  monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
+
   atualizar();
 });
+
 containerIgrejas.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-igreja");
   textoFiltroIgrejas.textContent = sel.length === 0 ? "Todas las Iglesias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
@@ -612,6 +576,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   }
   push(ref(database, 'musicos'), dados);
   document.getElementById("formMusico").reset();
+  igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`; // Reset select iglesias
   containerSegundoInstrumento.style.display = "none";
 });
 
@@ -781,8 +746,11 @@ function atualizar(){
     const tps = m.tipo ? m.tipo.split(", ") : [""];
 
     if (editKey === m.key) {
-      const optionsIgrejas = igrejas.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
       const optionsProvincias = `<option value="">Provincia</option>` + provincias.map(p => `<option value="${p}" ${p === m.provincia ? 'selected' : ''}>${p}</option>`).join('');
+      
+      const igsDaProvincia = m.provincia && provinciasEIgrejas[m.provincia] ? provinciasEIgrejas[m.provincia] : igrejas;
+      const optionsIgrejas = `<option value="">Iglesia</option>` + igsDaProvincia.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
+      
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsInst2 = instrumentos.map(i => `<option value="${i}" ${i === insts[1] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsTipo1 = tipos.map(t => `<option value="${t}" ${t === tps[0] ? 'selected' : ''}>${t}</option>`).join('');
@@ -829,6 +797,19 @@ function atualizar(){
       const selectTipo2 = tr.querySelector(".edit-tipo2");
       const chkEditInativo = tr.querySelector(".edit-inativo");
       const txtEditMotivo = tr.querySelector(".edit-motivo");
+      const selEditProv = tr.querySelector(".edit-provincia");
+      const selEditIg = tr.querySelector(".edit-igreja");
+      
+      // Cascading update para iglesias en modo de edición
+      selEditProv.addEventListener("change", (e) => {
+        const p = e.target.value;
+        selEditIg.innerHTML = `<option value="">Iglesia</option>`;
+        if (p && provinciasEIgrejas[p]) {
+          provinciasEIgrejas[p].forEach(i => {
+            selEditIg.innerHTML += `<option value="${i}">${i}</option>`;
+          });
+        }
+      });
       
       btnMais.addEventListener("click", () => {
         selectInst2.style.display = "block";
@@ -889,7 +870,10 @@ function cancelarEdicao() { editKey = null; atualizar(); }
 function salvarInline(key, tr) {
   const nomeNovo = tr.querySelector(".edit-nome").value.trim().toUpperCase();
   const contatoNovo = tr.querySelector(".edit-contato").value.trim();
-  if (!nomeNovo || !contatoNovo) { alert("Por favor, complete los campos requeridos."); return; }
+  const igrejaNova = tr.querySelector(".edit-igreja").value;
+  const provinciaNova = tr.querySelector(".edit-provincia").value;
+
+  if (!nomeNovo || !contatoNovo || !igrejaNova || !provinciaNova) { alert("Por favor, complete los campos requeridos (Provincia, Iglesia, Nombre y Contacto)."); return; }
 
   const inst1 = tr.querySelector(".edit-inst1").value;
   const selectInst2 = tr.querySelector(".edit-inst2");
@@ -907,8 +891,8 @@ function salvarInline(key, tr) {
   }
 
   const dados = {
-    provincia: tr.querySelector(".edit-provincia").value,
-    igreja: tr.querySelector(".edit-igreja").value,
+    provincia: provinciaNova,
+    igreja: igrejaNova,
     nome: nomeNovo,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "),
@@ -923,13 +907,12 @@ function salvarInline(key, tr) {
   }).catch((e) => console.error(e));
 }
 
-function excluir(key){ if(confirm("¿Realmente deseja eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
+function excluir(key){ if(confirm("¿Realmente desea eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
 
-/* --- NOVA FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
+/* --- FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
 document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
-  // Criar uma matriz contendo o cabeçalho e as linhas de dados
   const dadosExcel = [
     ["Provincia", "Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo Inactivo"]
   ];
@@ -947,18 +930,16 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
     ]);
   });
   
-  // Gerar o livro (workbook) e a planilha (worksheet) com SheetJS
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(dadosExcel);
   XLSX.utils.book_append_sheet(wb, ws, "Músicos");
   
-  // Fazer o download do arquivo .xlsx nativo
   XLSX.writeFile(wb, "Registro_de_Musicos_CCA.xlsx");
 });
 
 document.getElementById("btn-clique-importar").addEventListener("click", () => { document.getElementById("inputImportar").click(); });
 
-/* --- NOVA FUNÇÃO DE IMPORTAÇÃO DE XLSX --- */
+/* --- FUNÇÃO DE IMPORTAÇÃO DE XLSX --- */
 document.getElementById("inputImportar").addEventListener("change", (event) => {
   const archivo = event.target.files[0]; if (!archivo) return;
   const lector = new FileReader();
@@ -967,16 +948,13 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
     
-    // Obter a primeira aba da planilha
     const nomeFolha = workbook.SheetNames[0];
     const hoja = workbook.Sheets[nomeFolha];
     
-    // Converter o conteúdo em matriz de linhas
     const filas = XLSX.utils.sheet_to_json(hoja, { header: 1 });
     
     if (filas.length <= 1) { alert("No se encontraron registros de músicos en el archivo XLSX."); return; }
     
-    // Identificar dinamicamente os índices das colunas pelos nomes dos cabeçalhos
     const encabezados = filas[0].map(h => h ? h.toString().trim().toLowerCase() : "");
     const idxIgreja = encabezados.indexOf("iglesia");
     const idxProvincia = encabezados.indexOf("provincia");
@@ -1052,7 +1030,7 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
     const credencial = EmailAuthProvider.credential(usuarioAtual.email, senhaInformada);
     reauthenticateWithCredential(usuarioAtual, credencial).then(() => {
       if (confirm("¿Confirmar eliminación total?")) {
-        remove(ref(database, 'musicos')).then(() => alert("💥 Dados limpos."));
+        remove(ref(database, 'musicos')).then(() => alert("💥 Datos limpios."));
       }
     }).catch(() => alert("❌ Contraseña incorrecta."));
   }
@@ -1084,6 +1062,17 @@ btnLimparBusca.addEventListener("click", () => {
   document.getElementById("btn-toggle-igrejas").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-instrumentos").textContent = "Seleccionar Todos";
   document.getElementById("btn-toggle-tipos").textContent = "Seleccionar Todos";
+  
+  // Restablecer el dropdown de iglesias a su estado completo
+  containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
+  igrejas.forEach(ig => {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
+    containerIgrejas.appendChild(label);
+  });
+  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
+  monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
+
   atualizar();      
 });
 </script>
