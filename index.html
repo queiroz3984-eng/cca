@@ -206,6 +206,14 @@ tr.linha-inativo {
   </div>
 
   <div class="filtros">
+
+    <div class="multiselect">
+      <div class="selectBox" id="abrir-filtros-provincias">
+        <select><option id="texto-filtro-provincias">Todas las Provincias</option></select>
+        <div class="overSelect"></div>
+      </div>
+      <div id="checkboxes-provincias" class="checkboxes-dropdown"></div>
+    </div>
     
     <div class="multiselect">
       <div class="selectBox" id="abrir-filtros-igrejas">
@@ -275,6 +283,7 @@ tr.linha-inativo {
   </div>
 
   <form id="formMusico">
+    <select id="provincia" required></select>
     <select id="igreja" required></select>
     <input type="text" id="nome" placeholder="Nombre" required>
     
@@ -302,6 +311,7 @@ tr.linha-inativo {
   <table>
   <thead>
   <tr>
+  <th>Provincia</th>
   <th>Iglesia</th>
   <th>Nombre</th>
   <th>Instrumento</th>
@@ -335,10 +345,12 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 const igrejas = ["Común Congregación","ALTO MERLO","BELLA VISTA","CAPITAL","CASEROS","CLAYPOLE","DONSELAR","GUERNICA","JOSE C. PAZ","LA PLATA","LAFERRERE","LOMAS DE GUERNICA","MERLO","MORENO","PACHECO","SANTA BRIGIDA","SARANDI","SPEGAZZINI","VILLA LYNCH","VILLA TORO","ZÁRATE"];
+const provincias = ["CABA", "GRAN BUENOS AIRES", "INTERIOR", "CHACO", "CÓRDOBA", "CORRIENTES", "ENTRE RÍOS", "FORMOSA", "JUJUY", "MENDOZA", "MISIONES", "NEUQUÉN", "RÍO NEGRO", "SALTA", "SAN LUIS", "SANTA FE"];
 const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBÓN","BOMBARDINO","TUBA"];
 const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
 
 const igrejaSelect = document.getElementById("igreja");
+const provinciaSelect = document.getElementById("provincia");
 const instrumento1 = document.getElementById("instrumento1");
 const instrumento2 = document.getElementById("instrumento2");
 const tipo1Select = document.getElementById("tipo");
@@ -351,6 +363,8 @@ const btnLimparBusca = document.getElementById("btn-limpar-busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
 
+const containerProvincias = document.getElementById("checkboxes-provincias");
+const textoFiltroProvincias = document.getElementById("texto-filtro-provincias");
 const containerIgrejas = document.getElementById("checkboxes-igrejas");
 const textoFiltroIgrejas = document.getElementById("texto-filtro-igrejas");
 const containerInstrumentos = document.getElementById("checkboxes-instrumentos");
@@ -402,6 +416,8 @@ document.getElementById("btn-entrar").addEventListener("click", () => {
 });
 
 igrejas.forEach(i=>{ igrejaSelect.innerHTML += `<option>${i}</option>`; });
+provinciaSelect.innerHTML = `<option value="">Provincia</option>`;
+provincias.forEach(p=>{ provinciaSelect.innerHTML += `<option>${p}</option>`; });
 
 instrumento1.innerHTML = `<option value="">Instrumento 1</option>`;
 instrumento2.innerHTML = `<option value="">Instrumento 2 (Opcional)</option>`;
@@ -415,10 +431,16 @@ tipos.forEach(t => {
   tipo2Select.innerHTML += `<option>${t}</option>`;
 });
 
+containerProvincias.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-provincias">Seleccionar Todas</a></div>`;
 containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
 containerInstrumentos.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-instrumentos">Seleccionar Todos</a></div>`;
 containerTipos.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-tipos">Seleccionar Todos</a></div>`;
 
+provincias.forEach(prov => {
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" value="${prov}" class="chk-provincia"> ${prov}`;
+  containerProvincias.appendChild(label);
+});
 igrejas.forEach(ig => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
@@ -469,20 +491,26 @@ function monitorarMudancasCheckboxes(idBotao, classeCheckboxes, textoPlural) {
   });
 }
 
+gerenciarBotaoAlternar("btn-toggle-provincias", "chk-provincia", "Todas las Provincias", "Provincias", textoFiltroProvincias);
 gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
 gerenciarBotaoAlternar("btn-toggle-instrumentos", "chk-instrumento", "Todos los Instrumentos", "Instrumentos", textoFiltroInstrumentos);
 gerenciarBotaoAlternar("btn-toggle-tipos", "chk-tipo", "Todos los Tipos", "Tipos", textoFiltroTipos);
 
+monitorarMudancasCheckboxes("btn-toggle-provincias", "chk-provincia", "Provincias");
 monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
 monitorarMudancasCheckboxes("btn-toggle-instrumentos", "chk-instrumento", "Instrumentos");
 monitorarMudancasCheckboxes("btn-toggle-tipos", "chk-tipo", "Tipos");
 
 function fecharTodosDropdowns() {
+  containerProvincias.style.display = "none";
   containerIgrejas.style.display = "none";
   containerInstrumentos.style.display = "none";
   containerTipos.style.display = "none";
 }
 
+document.getElementById("abrir-filtros-provincias").addEventListener("click", (e) => {
+  e.stopPropagation(); const visivel = containerProvincias.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerProvincias.style.display = "block";
+});
 document.getElementById("abrir-filtros-igrejas").addEventListener("click", (e) => {
   e.stopPropagation(); const visivel = containerIgrejas.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerIgrejas.style.display = "block";
 });
@@ -494,6 +522,7 @@ document.getElementById("abrir-filtros-tipos").addEventListener("click", (e) => 
 });
 
 document.addEventListener("click", fecharTodosDropdowns);
+containerProvincias.addEventListener("click", (e) => { e.stopPropagation(); });
 containerIgrejas.addEventListener("click", (e) => { e.stopPropagation(); });
 containerInstrumentos.addEventListener("click", (e) => { e.stopPropagation(); });
 containerTipos.addEventListener("click", (e) => { e.stopPropagation(); });
@@ -505,6 +534,11 @@ function pegarValoresSelecionados(className) {
   return selecionados;
 }
 
+containerProvincias.addEventListener("change", () => {
+  const sel = pegarValoresSelecionados("chk-provincia");
+  textoFiltroProvincias.textContent = sel.length === 0 ? "Todas las Provincias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  atualizar();
+});
 containerIgrejas.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-igreja");
   textoFiltroIgrejas.textContent = sel.length === 0 ? "Todas las Iglesias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
@@ -561,6 +595,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   const nomeEmCaixaAlta = document.getElementById("nome").value.trim().toUpperCase();
 
   const dados = {
+    provincia: provinciaSelect.value,
     igreja: igrejaSelect.value,
     nome: nomeEmCaixaAlta,
     instrumento: instrumentosFinal.join(", "),
@@ -694,6 +729,7 @@ document.getElementById("btn-toggle-grafico").addEventListener("click", function
 
 function atualizar(){
   const texto = busca.value.toLowerCase();
+  const provinciasSelecionadas = pegarValoresSelecionados("chk-provincia");
   const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
@@ -714,11 +750,13 @@ function atualizar(){
     if (statusSelecionado === "inativos" && !m.inativo) return false;
 
     return (
+      (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
       (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
       (tiposSelecionadas.length === 0 || tiposSelecionadas.some(t => m.tipo && m.tipo.includes(t))) &&
       (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento && m.instrumento.includes(inst))) &&
       (
         m.nome.toLowerCase().includes(texto) ||
+        (m.provincia && m.provincia.toLowerCase().includes(texto)) ||
         (m.instrumento && m.instrumento.toLowerCase().includes(texto))
       )
     );
@@ -744,12 +782,14 @@ function atualizar(){
 
     if (editKey === m.key) {
       const optionsIgrejas = igrejas.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
+      const optionsProvincias = `<option value="">Provincia</option>` + provincias.map(p => `<option value="${p}" ${p === m.provincia ? 'selected' : ''}>${p}</option>`).join('');
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsInst2 = instrumentos.map(i => `<option value="${i}" ${i === insts[1] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsTipo1 = tipos.map(t => `<option value="${t}" ${t === tps[0] ? 'selected' : ''}>${t}</option>`).join('');
       const optionsTipo2 = tipos.map(t => `<option value="${t}" ${t === tps[1] ? 'selected' : ''}>${t}</option>`).join('');
 
       tr.innerHTML = `
+        <td><select class="edit-provincia" style="width:100%; padding:4px;">${optionsProvincias}</select></td>
         <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
         <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
         <td>
@@ -820,6 +860,7 @@ function atualizar(){
         : '✅ Activo';
 
       tr.innerHTML = `
+        <td>${m.provincia || ""}</td>
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
         <td>${htmlInstrumentos}</td>
@@ -866,6 +907,7 @@ function salvarInline(key, tr) {
   }
 
   const dados = {
+    provincia: tr.querySelector(".edit-provincia").value,
     igreja: tr.querySelector(".edit-igreja").value,
     nome: nomeNovo,
     instrumento: instrumentosFinal.join(", "),
@@ -889,11 +931,12 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
   
   // Criar uma matriz contendo o cabeçalho e as linhas de dados
   const dadosExcel = [
-    ["Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo Inactivo"]
+    ["Provincia", "Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo Inactivo"]
   ];
   
   filtrados.forEach(m => {
     dadosExcel.push([
+      m.provincia || "",
       m.igreja || "",
       m.nome || "",
       m.instrumento || "",
@@ -936,6 +979,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     // Identificar dinamicamente os índices das colunas pelos nomes dos cabeçalhos
     const encabezados = filas[0].map(h => h ? h.toString().trim().toLowerCase() : "");
     const idxIgreja = encabezados.indexOf("iglesia");
+    const idxProvincia = encabezados.indexOf("provincia");
     const idxNome = encabezados.indexOf("nombre");
     const idxInstrumento = encabezados.indexOf("instrumento");
     const idxTipo = encabezados.indexOf("tipo");
@@ -957,6 +1001,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       const getVal = (idx) => (idx !== -1 && fila[idx] !== undefined && fila[idx] !== null) ? fila[idx].toString().trim() : "";
 
       const igrejaImportar = getVal(idxIgreja).toUpperCase();
+      const provinciaImportar = getVal(idxProvincia).toUpperCase();
       const nomeImportar = getVal(idxNome).toUpperCase();
       const instrumentoImportar = getVal(idxInstrumento).toUpperCase();
       const tipoImportar = getVal(idxTipo).toUpperCase();
@@ -979,6 +1024,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       const instrumentosValidos = instsImportados.every(inst => instrumentos.map(x => x.toUpperCase()).includes(inst));
 
       let dados = { 
+        provincia: provinciaImportar,
         igreja: getVal(idxIgreja), 
         nome: nomeImportar, 
         instrumento: getVal(idxInstrumento), 
@@ -1017,21 +1063,24 @@ function ordenarPor(coluna) {
   atualizar();
 }
 const cabecalhos = document.querySelectorAll("table th");
-cabecalhos[0].addEventListener("click", () => ordenarPor("igreja"));
-cabecalhos[1].addEventListener("click", () => ordenarPor("nome"));
-cabecalhos[2].addEventListener("click", () => ordenarPor("instrumento"));
-cabecalhos[3].addEventListener("click", () => ordenarPor("tipo"));
+cabecalhos[0].addEventListener("click", () => ordenarPor("provincia"));
+cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
+cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
+cabecalhos[3].addEventListener("click", () => ordenarPor("instrumento"));
+cabecalhos[4].addEventListener("click", () => ordenarPor("tipo"));
 
-cabecalhos.forEach((th, index) => { if(index < 4) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
+cabecalhos.forEach((th, index) => { if(index < 5) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
   busca.value = ""; 
-  document.querySelectorAll('.chk-igreja, .chk-instrumento, .chk-tipo').forEach(chk => chk.checked = false);
+  document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo').forEach(chk => chk.checked = false);
   filtroStatus.value = "todos";
+  textoFiltroProvincias.textContent = "Todas las Provincias";
   textoFiltroIgrejas.textContent = "Todas las Iglesias";
   textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
   textoFiltroTipos.textContent = "Todos los Tipos";
+  document.getElementById("btn-toggle-provincias").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-igrejas").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-instrumentos").textContent = "Seleccionar Todos";
   document.getElementById("btn-toggle-tipos").textContent = "Seleccionar Todos";
