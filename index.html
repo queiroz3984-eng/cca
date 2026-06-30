@@ -182,6 +182,7 @@ tr.linha-inativo {
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 </head>
 <body>
@@ -264,10 +265,10 @@ tr.linha-inativo {
     <div class="coluna-direita-acoes">
       <div id="contador"><strong>Total: 0 músico(s)</strong></div>
       <div class="botoes-acao">
-        <input type="file" id="inputImportar" accept=".xml" style="display: none;">
+        <input type="file" id="inputImportar" accept=".xlsx" style="display: none;">
         <button type="button" class="btn-excluir-tudo" id="btn-excluir-tudo">🚨 Eliminar Todo</button>
-        <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar XML</button>
-        <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XML</button>
+        <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar XLSX</button>
+        <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XLSX</button>
         <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico">📊 Mostrar Gráfico</button>
       </div>
     </div>
@@ -882,96 +883,94 @@ function salvarInline(key, tr) {
 
 function excluir(key){ if(confirm("¿Realmente deseja eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
 
-/* --- NOVA FUNÇÃO DE EXPORTAÇÃO PARA XML --- */
+/* --- NOVA FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
 document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
-  let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n<musicos>\n';
+  // Criar uma matriz contendo o cabeçalho e as linhas de dados
+  const dadosExcel = [
+    ["Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo Inactivo"]
+  ];
   
   filtrados.forEach(m => {
-    xmlContent += '  <musico>\n';
-    xmlContent += `    <igreja>${escapeXml(m.igreja)}</igreja>\n`;
-    xmlContent += `    <nome>${escapeXml(m.nome)}</nome>\n`;
-    xmlContent += `    <instrumento>${escapeXml(m.instrumento)}</instrumento>\n`;
-    xmlContent += `    <tipo>${escapeXml(m.tipo)}</tipo>\n`;
-    xmlContent += `    <contato>${escapeXml(m.contato)}</contato>\n`;
-    xmlContent += `    <inativo>${m.inativo ? 'SI' : 'NO'}</inativo>\n`;
-    xmlContent += `    <motivoInativo>${escapeXml(m.motivoInativo || '')}</motivoInativo>\n`;
-    xmlContent += '  </musico>\n';
+    dadosExcel.push([
+      m.igreja || "",
+      m.nome || "",
+      m.instrumento || "",
+      m.tipo || "",
+      m.contato || "",
+      m.inativo ? "SI" : "NO",
+      m.motivoInativo || ""
+    ]);
   });
   
-  xmlContent += '</musicos>';
+  // Gerar o livro (workbook) e a planilha (worksheet) com SheetJS
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(dadosExcel);
+  XLSX.utils.book_append_sheet(wb, ws, "Músicos");
   
-  const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url); 
-  link.setAttribute("download", "Registro_de_Musicos_CCA.xml");
-  document.body.appendChild(link); 
-  link.click(); 
-  document.body.removeChild(link);
+  // Fazer o download do arquivo .xlsx nativo
+  XLSX.writeFile(wb, "Registro_de_Musicos_CCA.xlsx");
 });
-
-// Auxiliar para evitar quebra de tags XML por caracteres especiais
-function escapeXml(unsafe) {
-  if (!unsafe) return "";
-  return unsafe.replace(/[<>&'"]/g, function (c) {
-    switch (c) {
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '&': return '&amp;';
-      case '\'': return '&apos;';
-      case '"': return '&quot;';
-    }
-  });
-}
 
 document.getElementById("btn-clique-importar").addEventListener("click", () => { document.getElementById("inputImportar").click(); });
 
-/* --- NOVA FUNÇÃO DE IMPORTAÇÃO DE XML --- */
+/* --- NOVA FUNÇÃO DE IMPORTAÇÃO DE XLSX --- */
 document.getElementById("inputImportar").addEventListener("change", (event) => {
   const archivo = event.target.files[0]; if (!archivo) return;
   const lector = new FileReader();
   
   lector.onload = function(e) {
-    const contenido = e.target.result;
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(contenido, "text/xml");
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
     
-    // Verifica se houve erro de parse no XML
-    if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
-      alert("El arquivo XML no é válido.");
+    // Obter a primeira aba da planilha
+    const nomeFolha = workbook.SheetNames[0];
+    const hoja = workbook.Sheets[nomeFolha];
+    
+    // Converter o conteúdo em matriz de linhas
+    const filas = XLSX.utils.sheet_to_json(hoja, { header: 1 });
+    
+    if (filas.length <= 1) { alert("No se encontraron registros de músicos en el archivo XLSX."); return; }
+    
+    // Identificar dinamicamente os índices das colunas pelos nomes dos cabeçalhos
+    const encabezados = filas[0].map(h => h ? h.toString().trim().toLowerCase() : "");
+    const idxIgreja = encabezados.indexOf("iglesia");
+    const idxNome = encabezados.indexOf("nombre");
+    const idxInstrumento = encabezados.indexOf("instrumento");
+    const idxTipo = encabezados.indexOf("tipo");
+    const idxContato = encabezados.indexOf("contacto");
+    const idxInativo = encabezados.indexOf("inactivo");
+    const idxMotivo = encabezados.indexOf("motivo inactivo");
+    
+    if (idxIgreja === -1 || idxNome === -1) {
+      alert("El archivo XLSX debe contener las columnas 'Iglesia' y 'Nombre'.");
       return;
     }
-
-    const musicosNodes = xmlDoc.getElementsByTagName("musico");
-    if (musicosNodes.length === 0) { alert("No se encontraron registros de músicos no arquivo XML."); return; }
     
-    const processadosNoXml = new Set();
+    const processadosNoExcel = new Set();
 
-    for (let i = 0; i < musicosNodes.length; i++) {
-      const node = musicosNodes[i];
+    for (let i = 1; i < filas.length; i++) {
+      const fila = filas[i];
+      if (!fila || fila.length === 0) continue;
       
-      const getVal = (tagName) => {
-        const el = node.getElementsByTagName(tagName)[0];
-        return el ? el.textContent.trim() : "";
-      };
+      const getVal = (idx) => (idx !== -1 && fila[idx] !== undefined && fila[idx] !== null) ? fila[idx].toString().trim() : "";
 
-      const igrejaImportar = getVal("igreja").toUpperCase();
-      const nomeImportar = getVal("nome").toUpperCase();
-      const instrumentoImportar = getVal("instrumento").toUpperCase();
-      const tipoImportar = getVal("tipo").toUpperCase();
-      const contatoImportar = getVal("contato").toUpperCase();
-      const inativoImportar = getVal("inativo") === 'SI';
-      const motivoImportar = getVal("motivoInativo");
+      const igrejaImportar = getVal(idxIgreja).toUpperCase();
+      const nomeImportar = getVal(idxNome).toUpperCase();
+      const instrumentoImportar = getVal(idxInstrumento).toUpperCase();
+      const tipoImportar = getVal(idxTipo).toUpperCase();
+      const contatoImportar = getVal(idxContato).toUpperCase();
+      const inativoImportar = getVal(idxInativo).toUpperCase() === 'SI' || getVal(idxInativo).toUpperCase() === 'TRUE';
+      const motivoImportar = getVal(idxMotivo);
 
       if (!nomeImportar || !igrejaImportar) continue;
 
       const chaveComposta = `${nomeImportar}|${igrejaImportar}`;
       const jaExisteNoFirebase = lista.some(m => m.nome.toUpperCase() === nomeImportar && m.igreja.toUpperCase() === igrejaImportar);
       
-      if (processadosNoXml.has(chaveComposta) || jaExisteNoFirebase) { continue; }
-      processadosNoXml.add(chaveComposta);
+      if (processadosNoExcel.has(chaveComposta) || jaExisteNoFirebase) { continue; }
+      processadosNoExcel.add(chaveComposta);
 
       const igrejaValida = igrejas.map(x => x.toUpperCase()).includes(igrejaImportar);
       const tpsImportados = tipoImportar.split(",").map(x => x.trim());
@@ -980,11 +979,11 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       const instrumentosValidos = instsImportados.every(inst => instrumentos.map(x => x.toUpperCase()).includes(inst));
 
       let dados = { 
-        igreja: getVal("igreja"), // Mantém a grafia original para salvar
+        igreja: getVal(idxIgreja), 
         nome: nomeImportar, 
-        instrumento: getVal("instrumento"), 
-        tipo: getVal("tipo"), 
-        contato: getVal("contato"),
+        instrumento: getVal(idxInstrumento), 
+        tipo: getVal(idxTipo), 
+        contato: getVal(idxContato),
         inativo: inativoImportar,
         motivoInativo: motivoImportar
       };
@@ -994,7 +993,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     }
     alert(`Importación finalizada.`); event.target.value = '';
   };
-  lector.readAsText(archivo, 'UTF-8');
+  lector.readAsArrayBuffer(archivo);
 });
 
 document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
