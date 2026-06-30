@@ -195,6 +195,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
   <form id="formMusico">
     <select id="provincia" required></select>
     <select id="igreja" required></select>
+    <select id="escuelaMusica" required></select>
     <input type="text" id="nome" placeholder="Nombre" required>
     
     <div class="par-campos">
@@ -222,10 +223,11 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
   <thead>
   <tr>
   <th>Provincia</th>
-  <th>Iglesia</th>
+  <th>Común Congregación</th>
   <th>Nombre</th>
   <th>Instrumento</th>
   <th>Tipo</th>
+  <th>Escuela de Música</th>
   <th>Contacto</th>
   <th>Observación</th>
   <th>Acciones</th>
@@ -282,8 +284,10 @@ igrejas = [...new Set(igrejas)].sort(); // Remover duplicados y ordenar
 
 const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBÓN","BOMBARDINO","TUBA"];
 const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
+const tiposSemEscuelaMusica = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "EXAMINADO", "INSTRUCTOR", "OFICIALIZADO"];
 
 const igrejaSelect = document.getElementById("igreja");
+const escuelaMusicaSelect = document.getElementById("escuelaMusica");
 const provinciaSelect = document.getElementById("provincia");
 const instrumento1 = document.getElementById("instrumento1");
 const instrumento2 = document.getElementById("instrumento2");
@@ -353,6 +357,8 @@ document.getElementById("btn-entrar").addEventListener("click", () => {
 provinciaSelect.innerHTML = `<option value="">Provincia</option>`;
 provincias.forEach(p => { provinciaSelect.innerHTML += `<option value="${p}">${p}</option>`; });
 igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
+carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
+let ultimaEscuelaAutomatica = "";
 
 // Evento cascada para el formulario principal
 provinciaSelect.addEventListener("change", (e) => {
@@ -362,6 +368,13 @@ provinciaSelect.addEventListener("change", (e) => {
     provinciasEIgrejas[prov].forEach(i => {
       igrejaSelect.innerHTML += `<option value="${i}">${i}</option>`;
     });
+  }
+});
+
+igrejaSelect.addEventListener("change", () => {
+  if (!escuelaMusicaSelect.value || escuelaMusicaSelect.value === ultimaEscuelaAutomatica) {
+    escuelaMusicaSelect.value = igrejaSelect.value;
+    ultimaEscuelaAutomatica = igrejaSelect.value;
   }
 });
 
@@ -403,6 +416,27 @@ tipos.forEach(tp => {
   containerTipos.appendChild(label);
 });
 
+function tipoDispensaEscuelaMusica(tipoValor) {
+  const tiposDoMusico = (tipoValor || "").split(",").map(t => t.trim().toUpperCase()).filter(Boolean);
+  return tiposDoMusico.some(t => tiposSemEscuelaMusica.includes(t));
+}
+
+function atualizarEscuelaMusicaPorTipo(tipoValor, selectEscuela) {
+  if (!selectEscuela) return;
+  if (tipoDispensaEscuelaMusica(tipoValor)) {
+    selectEscuela.value = "-";
+    selectEscuela.disabled = true;
+  } else {
+    selectEscuela.disabled = false;
+    if (selectEscuela.value === "-") selectEscuela.value = "";
+  }
+}
+function carregarOpcionesEscuelaMusica(select, valorSelecionado = "") {
+  select.innerHTML = `<option value="">Escuela de Música</option><option value="-" ${valorSelecionado === '-' ? 'selected' : ''}>-</option>`;
+  igrejas.forEach(i => {
+    select.innerHTML += `<option value="${i}" ${i === valorSelecionado ? 'selected' : ''}>${i}</option>`;
+  });
+}
 function gerenciarBotaoAlternar(idBotao, classeCheckboxes, textoPadrao, textoPlural, elementoTextoFiltro) {
   const botao = document.getElementById(idBotao);
   botao.addEventListener("click", (e) => {
@@ -513,6 +547,14 @@ containerInstrumentos.addEventListener("change", () => {
   textoFiltroInstrumentos.textContent = sel.length === 0 ? "Todos los Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Selecionados`);
   atualizar();
 });
+function atualizarEscuelaFormulario() {
+  const tiposSelecionados = [tipo1Select.value];
+  if (containerSegundoInstrumento.style.display !== "none" && tipo2Select.value) tiposSelecionados.push(tipo2Select.value);
+  atualizarEscuelaMusicaPorTipo(tiposSelecionados.join(", "), escuelaMusicaSelect);
+}
+
+tipo1Select.addEventListener("change", atualizarEscuelaFormulario);
+tipo2Select.addEventListener("change", atualizarEscuelaFormulario);
 containerTipos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-tipo");
   textoFiltroTipos.textContent = sel.length === 0 ? "Todos los Tipos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
@@ -523,6 +565,7 @@ filtroStatus.addEventListener("change", atualizar);
 
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
   containerSegundoInstrumento.style.display = "inline-block";
+  atualizarEscuelaFormulario();
 });
 
 function aplicarMascaraContato(input) {
@@ -561,6 +604,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   const dados = {
     provincia: provinciaSelect.value,
     igreja: igrejaSelect.value,
+    escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : escuelaMusicaSelect.value,
     nome: nomeEmCaixaAlta,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "), 
@@ -576,7 +620,10 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   }
   push(ref(database, 'musicos'), dados);
   document.getElementById("formMusico").reset();
-  igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`; // Reset select iglesias
+  igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
+carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
+  ultimaEscuelaAutomatica = ""; // Reset select iglesias
+  escuelaMusicaSelect.disabled = false;
   containerSegundoInstrumento.style.display = "none";
 });
 
@@ -692,6 +739,16 @@ document.getElementById("btn-toggle-grafico").addEventListener("click", function
   }
 });
 
+function obterEscuelaMusica(m) {
+  if (m && tipoDispensaEscuelaMusica(m.tipo)) return "-";
+  return (m && (m.escuelaMusica || m.escolaMusica || m.igreja)) || "";
+}
+
+function obterValorOrdenacao(m, coluna) {
+  if (coluna === "escuelaMusica") return obterEscuelaMusica(m).toLowerCase();
+  return m[coluna] ? m[coluna].toLowerCase() : "";
+}
+
 function atualizar(){
   const texto = busca.value.toLowerCase();
   const provinciasSelecionadas = pegarValoresSelecionados("chk-provincia");
@@ -727,8 +784,8 @@ function atualizar(){
     );
   })
   .sort((a, b) => {
-    let valorA = a[colunaOrdenada] ? a[colunaOrdenada].toLowerCase() : "";
-    let valorB = b[colunaOrdenada] ? b[colunaOrdenada].toLowerCase() : "";
+    let valorA = obterValorOrdenacao(a, colunaOrdenada);
+    let valorB = obterValorOrdenacao(b, colunaOrdenada);
     return ordemCrescente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
   });
 
@@ -750,6 +807,8 @@ function atualizar(){
       
       const igsDaProvincia = m.provincia && provinciasEIgrejas[m.provincia] ? provinciasEIgrejas[m.provincia] : igrejas;
       const optionsIgrejas = `<option value="">Iglesia</option>` + igsDaProvincia.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
+      const escuelaSelecionada = obterEscuelaMusica(m);
+      const optionsEscuelas = `<option value="">Escuela de Música</option><option value="-" ${escuelaSelecionada === '-' ? 'selected' : ''}>-</option>` + igrejas.map(i => `<option value="${i}" ${i === escuelaSelecionada ? 'selected' : ''}>${i}</option>`).join('');
       
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsInst2 = instrumentos.map(i => `<option value="${i}" ${i === insts[1] ? 'selected' : ''}>${i}</option>`).join('');
@@ -779,6 +838,7 @@ function atualizar(){
             </select>
           </div>
         </td>
+        <td><select class="edit-escuela-musica" style="width:100%; padding:4px;">${optionsEscuelas}</select></td>
         <td><input type="text" class="edit-contato" value="${m.contato}" style="width:90%; padding:4px;" required></td>
         <td>
           <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -799,6 +859,18 @@ function atualizar(){
       const txtEditMotivo = tr.querySelector(".edit-motivo");
       const selEditProv = tr.querySelector(".edit-provincia");
       const selEditIg = tr.querySelector(".edit-igreja");
+      const selEditEscuela = tr.querySelector(".edit-escuela-musica");
+      const selEditTipo1 = tr.querySelector(".edit-tipo1");
+      const selEditTipo2 = tr.querySelector(".edit-tipo2");
+      function atualizarEscuelaEdicao() {
+        const tiposSelecionados = [selEditTipo1.value];
+        if (selectInst2.style.display !== "none" && selEditTipo2.value) tiposSelecionados.push(selEditTipo2.value);
+        atualizarEscuelaMusicaPorTipo(tiposSelecionados.join(", "), selEditEscuela);
+      }
+      selEditTipo1.addEventListener("change", atualizarEscuelaEdicao);
+      selEditTipo2.addEventListener("change", atualizarEscuelaEdicao);
+      atualizarEscuelaEdicao();
+
       
       // Cascading update para iglesias en modo de edición
       selEditProv.addEventListener("change", (e) => {
@@ -811,10 +883,15 @@ function atualizar(){
         }
       });
       
+      selEditIg.addEventListener("change", () => {
+        if (selEditEscuela && !selEditEscuela.value) selEditEscuela.value = selEditIg.value || "";
+      });
+
       btnMais.addEventListener("click", () => {
         selectInst2.style.display = "block";
         selectTipo2.style.display = "block";
         btnMais.style.display = "none";
+        atualizarEscuelaEdicao();
       });
 
       chkEditInativo.addEventListener("change", () => {
@@ -846,6 +923,7 @@ function atualizar(){
         <td>${m.nome}</td>
         <td>${htmlInstrumentos}</td>
         <td>${htmlTipos}</td>
+        <td>${obterEscuelaMusica(m)}</td>
         <td>${m.contato}</td>
         <td>${htmlInativo}</td>
         <td>
@@ -872,6 +950,7 @@ function salvarInline(key, tr) {
   const contatoNovo = tr.querySelector(".edit-contato").value.trim();
   const igrejaNova = tr.querySelector(".edit-igreja").value;
   const provinciaNova = tr.querySelector(".edit-provincia").value;
+  const escuelaMusicaNova = tr.querySelector(".edit-escuela-musica").value;
 
   if (!nomeNovo || !contatoNovo || !igrejaNova || !provinciaNova) { alert("Por favor, complete los campos requeridos (Provincia, Iglesia, Nombre y Contacto)."); return; }
 
@@ -893,6 +972,7 @@ function salvarInline(key, tr) {
   const dados = {
     provincia: provinciaNova,
     igreja: igrejaNova,
+    escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : (escuelaMusicaNova || igrejaNova),
     nome: nomeNovo,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "),
@@ -914,7 +994,7 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
   const dadosExcel = [
-    ["Provincia", "Iglesia", "Nombre", "Instrumento", "Tipo", "Contacto", "Inactivo", "Motivo Inactivo"]
+    ["Provincia", "Común Congregación", "Nombre", "Instrumento", "Tipo", "Escuela de Música", "Contacto", "Inactivo", "Motivo Inactivo"]
   ];
   
   filtrados.forEach(m => {
@@ -924,6 +1004,7 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
       m.nome || "",
       m.instrumento || "",
       m.tipo || "",
+      obterEscuelaMusica(m),
       m.contato || "",
       m.inativo ? "SI" : "NO",
       m.motivoInativo || ""
@@ -956,7 +1037,10 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     if (filas.length <= 1) { alert("No se encontraron registros de músicos en el archivo XLSX."); return; }
     
     const encabezados = filas[0].map(h => h ? h.toString().trim().toLowerCase() : "");
-    const idxIgreja = encabezados.indexOf("iglesia");
+    const normalizarEncabezado = (valor) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const encabezadosNormalizados = encabezados.map(normalizarEncabezado);
+    const idxIgreja = encabezadosNormalizados.indexOf("comun congregacion") !== -1 ? encabezadosNormalizados.indexOf("comun congregacion") : encabezadosNormalizados.indexOf("iglesia");
+    const idxEscuelaMusica = encabezadosNormalizados.indexOf("escuela de musica");
     const idxProvincia = encabezados.indexOf("provincia");
     const idxNome = encabezados.indexOf("nombre");
     const idxInstrumento = encabezados.indexOf("instrumento");
@@ -966,7 +1050,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     const idxMotivo = encabezados.indexOf("motivo inactivo");
     
     if (idxIgreja === -1 || idxNome === -1) {
-      alert("El archivo XLSX debe contener las columnas 'Iglesia' y 'Nombre'.");
+      alert("El archivo XLSX debe contener las columnas 'Común Congregación' y 'Nombre'.");
       return;
     }
     
@@ -1004,6 +1088,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       let dados = { 
         provincia: provinciaImportar,
         igreja: getVal(idxIgreja), 
+        escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : (getVal(idxEscuelaMusica) || getVal(idxIgreja)),
         nome: nomeImportar, 
         instrumento: getVal(idxInstrumento), 
         tipo: getVal(idxTipo), 
@@ -1046,8 +1131,9 @@ cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
 cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
 cabecalhos[3].addEventListener("click", () => ordenarPor("instrumento"));
 cabecalhos[4].addEventListener("click", () => ordenarPor("tipo"));
+cabecalhos[5].addEventListener("click", () => ordenarPor("escuelaMusica"));
 
-cabecalhos.forEach((th, index) => { if(index < 5) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
+cabecalhos.forEach((th, index) => { if(index < 6) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
@@ -1078,3 +1164,11 @@ btnLimparBusca.addEventListener("click", () => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
