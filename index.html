@@ -148,6 +148,13 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
       </div>
       <div id="checkboxes-tipos" class="checkboxes-dropdown"></div>
     </div>
+    <div class="multiselect">
+      <div class="selectBox" id="abrir-filtros-escuelas-musica">
+        <select><option id="texto-filtro-escuelas-musica">Todas las Escuelas de Música</option></select>
+        <div class="overSelect"></div>
+      </div>
+      <div id="checkboxes-escuelas-musica" class="checkboxes-dropdown"></div>
+    </div>
 
     <div class="multiselect">
       <div class="selectBox">
@@ -309,6 +316,8 @@ const containerInstrumentos = document.getElementById("checkboxes-instrumentos")
 const textoFiltroInstrumentos = document.getElementById("texto-filtro-instrumentos");
 const containerTipos = document.getElementById("checkboxes-tipos");
 const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
+const containerEscuelasMusica = document.getElementById("checkboxes-escuelas-musica");
+const textoFiltroEscuelasMusica = document.getElementById("texto-filtro-escuelas-musica");
 const filtroStatus = document.getElementById("filtro-status");
 
 let lista = []; 
@@ -386,6 +395,7 @@ containerProvincias.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" cl
 containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
 containerInstrumentos.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-instrumentos">Seleccionar Todos</a></div>`;
 containerTipos.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-tipos">Seleccionar Todos</a></div>`;
+containerEscuelasMusica.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-escuelas-musica">Seleccionar Todas</a></div>`;
 
 provincias.forEach(prov => {
   const label = document.createElement("label");
@@ -408,6 +418,11 @@ tipos.forEach(tp => {
   containerTipos.appendChild(label);
 });
 
+["-", ...igrejas].forEach(escuela => {
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" value="${escuela}" class="chk-escuela-musica"> ${escuela}`;
+  containerEscuelasMusica.appendChild(label);
+});
 function tipoDispensaEscuelaMusica(tipoValor) {
   const tiposDoMusico = (tipoValor || "").split(",").map(t => t.trim().toUpperCase()).filter(Boolean);
   return tiposDoMusico.length > 0 && tiposDoMusico.every(t => tiposSemEscuelaMusica.includes(t));
@@ -467,17 +482,20 @@ gerenciarBotaoAlternar("btn-toggle-provincias", "chk-provincia", "Todas las Prov
 gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
 gerenciarBotaoAlternar("btn-toggle-instrumentos", "chk-instrumento", "Todos los Instrumentos", "Instrumentos", textoFiltroInstrumentos);
 gerenciarBotaoAlternar("btn-toggle-tipos", "chk-tipo", "Todos los Tipos", "Tipos", textoFiltroTipos);
+gerenciarBotaoAlternar("btn-toggle-escuelas-musica", "chk-escuela-musica", "Todas las Escuelas de Música", "Escuelas", textoFiltroEscuelasMusica);
 
 monitorarMudancasCheckboxes("btn-toggle-provincias", "chk-provincia", "Provincias");
 monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
 monitorarMudancasCheckboxes("btn-toggle-instrumentos", "chk-instrumento", "Instrumentos");
 monitorarMudancasCheckboxes("btn-toggle-tipos", "chk-tipo", "Tipos");
+monitorarMudancasCheckboxes("btn-toggle-escuelas-musica", "chk-escuela-musica", "Escuelas");
 
 function fecharTodosDropdowns() {
   containerProvincias.style.display = "none";
   containerIgrejas.style.display = "none";
   containerInstrumentos.style.display = "none";
   containerTipos.style.display = "none";
+  containerEscuelasMusica.style.display = "none";
 }
 
 document.getElementById("abrir-filtros-provincias").addEventListener("click", (e) => {
@@ -493,11 +511,14 @@ document.getElementById("abrir-filtros-tipos").addEventListener("click", (e) => 
   e.stopPropagation(); const visivel = containerTipos.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerTipos.style.display = "block";
 });
 
-document.addEventListener("click", fecharTodosDropdowns);
+document.getElementById("abrir-filtros-escuelas-musica").addEventListener("click", (e) => {
+  e.stopPropagation(); const visivel = containerEscuelasMusica.style.display === "block"; fecharTodosDropdowns(); if (!visivel) containerEscuelasMusica.style.display = "block";
+});document.addEventListener("click", fecharTodosDropdowns);
 containerProvincias.addEventListener("click", (e) => { e.stopPropagation(); });
 containerIgrejas.addEventListener("click", (e) => { e.stopPropagation(); });
 containerInstrumentos.addEventListener("click", (e) => { e.stopPropagation(); });
 containerTipos.addEventListener("click", (e) => { e.stopPropagation(); });
+containerEscuelasMusica.addEventListener("click", (e) => { e.stopPropagation(); });
 
 function pegarValoresSelecionados(className) {
   const checkboxes = document.querySelectorAll(`.${className}`);
@@ -553,7 +574,11 @@ containerTipos.addEventListener("change", () => {
   atualizar();
 });
 
-filtroStatus.addEventListener("change", atualizar);
+containerEscuelasMusica.addEventListener("change", () => {
+  const sel = pegarValoresSelecionados("chk-escuela-musica");
+  textoFiltroEscuelasMusica.textContent = sel.length === 0 ? "Todas las Escuelas de Música" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  atualizar();
+});filtroStatus.addEventListener("change", atualizar);
 
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
   containerSegundoInstrumento.style.display = "inline-block";
@@ -630,6 +655,7 @@ function atualizarGrafico(dadosFiltrados) {
 
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
+  const escuelasMusicaSelecionadas = pegarValoresSelecionados("chk-escuela-musica");
 
   dadosFiltrados.forEach(m => {
     if (m.inativo) return;
@@ -769,6 +795,7 @@ function atualizar(){
   const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
+  const escuelasMusicaSelecionadas = pegarValoresSelecionados("chk-escuela-musica");
   const statusSelecionado = filtroStatus.value;
 
   tabela.innerHTML = "";
@@ -788,11 +815,13 @@ function atualizar(){
     return (
       (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
       (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
+      (escuelasMusicaSelecionadas.length === 0 || escuelasMusicaSelecionadas.includes(obterEscuelaMusica(m))) &&
       musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
         (m.provincia && m.provincia.toLowerCase().includes(texto)) ||
-        (m.instrumento && m.instrumento.toLowerCase().includes(texto))
+        (m.instrumento && m.instrumento.toLowerCase().includes(texto)) ||
+        obterEscuelaMusica(m).toLowerCase().includes(texto)
       )
     );
   })
@@ -1147,16 +1176,18 @@ busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
   busca.value = ""; 
-  document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo').forEach(chk => chk.checked = false);
+  document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo, .chk-escuela-musica').forEach(chk => chk.checked = false);
   filtroStatus.value = "todos";
   textoFiltroProvincias.textContent = "Todas las Provincias";
   textoFiltroIgrejas.textContent = "Todas las Iglesias";
   textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
   textoFiltroTipos.textContent = "Todos los Tipos";
+  textoFiltroEscuelasMusica.textContent = "Todas las Escuelas de Música";
   document.getElementById("btn-toggle-provincias").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-igrejas").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-instrumentos").textContent = "Seleccionar Todos";
   document.getElementById("btn-toggle-tipos").textContent = "Seleccionar Todos";
+  document.getElementById("btn-toggle-escuelas-musica").textContent = "Seleccionar Todas";
   
   // Restablecer el dropdown de iglesias a su estado completo
   containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
@@ -1173,6 +1204,11 @@ btnLimparBusca.addEventListener("click", () => {
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
