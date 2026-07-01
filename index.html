@@ -629,21 +629,18 @@ function atualizarGrafico(dadosFiltrados) {
   let totalInstrumentos = 0;
 
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
+  const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
 
   dadosFiltrados.forEach(m => {
     if (m.inativo) return;
 
-    if (m.instrumento) {
-      const insts = m.instrumento.split(",").map(i => i.trim());
-      insts.forEach(inst => {
-        if (inst) {
-          if (instrumentosSelecionados.length === 0 || instrumentosSelecionados.includes(inst)) {
-            contagemInstrumentos[inst] = (contagemInstrumentos[inst] || 0) + 1;
-            totalInstrumentos++;
-          }
-        }
-      });
-    }
+    obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas).forEach(par => {
+      if (par.instrumento) {
+        contagemInstrumentos[par.instrumento] = (contagemInstrumentos[par.instrumento] || 0) + 1;
+        totalInstrumentos++;
+      }
+    });
+
     if (m.igreja) {
       contagemIgrejas[m.igreja] = (contagemIgrejas[m.igreja] || 0) + 1;
     }
@@ -740,6 +737,32 @@ function obterValorOrdenacao(m, coluna) {
   return m[coluna] ? m[coluna].toLowerCase() : "";
 }
 
+function obterParesInstrumentoTipo(m) {
+  const insts = m.instrumento ? m.instrumento.split(",").map(i => i.trim()) : [""];
+  const tps = m.tipo ? m.tipo.split(",").map(t => t.trim()) : [""];
+  return insts.map((inst, idx) => ({
+    instrumento: inst,
+    tipo: tps[idx] || tps[0] || ""
+  })).filter(par => par.instrumento || par.tipo);
+}
+
+function parAtendeFiltros(par, instrumentosSelecionados, tiposSelecionadas) {
+  const atendeInstrumento = instrumentosSelecionados.length === 0 || instrumentosSelecionados.includes(par.instrumento);
+  const atendeTipo = tiposSelecionadas.length === 0 || tiposSelecionadas.includes(par.tipo);
+  return atendeInstrumento && atendeTipo;
+}
+
+function musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) {
+  if (instrumentosSelecionados.length === 0 && tiposSelecionadas.length === 0) return true;
+  return obterParesInstrumentoTipo(m).some(par => parAtendeFiltros(par, instrumentosSelecionados, tiposSelecionadas));
+}
+
+function obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas) {
+  const pares = obterParesInstrumentoTipo(m);
+  if (instrumentosSelecionados.length === 0 && tiposSelecionadas.length === 0) return pares;
+  return pares.filter(par => parAtendeFiltros(par, instrumentosSelecionados, tiposSelecionadas));
+}
+
 function atualizar(){
   const texto = busca.value.toLowerCase();
   const provinciasSelecionadas = pegarValoresSelecionados("chk-provincia");
@@ -765,8 +788,7 @@ function atualizar(){
     return (
       (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
       (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-      (tiposSelecionadas.length === 0 || tiposSelecionadas.some(t => m.tipo && m.tipo.includes(t))) &&
-      (instrumentosSelecionados.length === 0 || instrumentosSelecionados.some(inst => m.instrumento && m.instrumento.includes(inst))) &&
+      musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
         (m.provincia && m.provincia.toLowerCase().includes(texto)) ||
@@ -790,8 +812,9 @@ function atualizar(){
       tr.classList.add("linha-erro"); 
     }
 
-    const insts = m.instrumento ? m.instrumento.split(", ") : [""];
-    const tps = m.tipo ? m.tipo.split(", ") : [""];
+    const paresDoMusico = obterParesInstrumentoTipo(m);
+    const insts = paresDoMusico.map(par => par.instrumento);
+    const tps = paresDoMusico.map(par => par.tipo);
 
     if (editKey === m.key) {
       const optionsProvincias = `<option value="">Provincia</option>` + provincias.map(p => `<option value="${p}" ${p === m.provincia ? 'selected' : ''}>${p}</option>`).join('');
@@ -892,11 +915,10 @@ function atualizar(){
     } else {
       let htmlInstrumentos = "";
       let htmlTipos = "";
-      insts.forEach((inst, idx) => {
-        const tipoCorr = tps[idx] || tps[0] || "";
-        if(inst) {
-          htmlInstrumentos += `<div>${inst}</div>`;
-          htmlTipos += `<div>${tipoCorr}</div>`;
+      obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas).forEach(par => {
+        if(par.instrumento) {
+          htmlInstrumentos += `<div>${par.instrumento}</div>`;
+          htmlTipos += `<div>${par.tipo}</div>`;
         }
       });
 
