@@ -119,7 +119,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 
     <div class="multiselect">
       <div class="selectBox" id="abrir-filtros-provincias">
-        <select><option id="texto-filtro-provincias">Todas las Provincias</option></select>
+        <select><option id="texto-filtro-provincias">Provincias</option></select>
         <div class="overSelect"></div>
       </div>
       <div id="checkboxes-provincias" class="checkboxes-dropdown"></div>
@@ -127,7 +127,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     
     <div class="multiselect">
       <div class="selectBox" id="abrir-filtros-igrejas">
-        <select><option id="texto-filtro-igrejas">Todas las Iglesias</option></select>
+        <select><option id="texto-filtro-igrejas">Iglesias</option></select>
         <div class="overSelect"></div>
       </div>
       <div id="checkboxes-igrejas" class="checkboxes-dropdown"></div>
@@ -135,7 +135,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     
     <div class="multiselect">
       <div class="selectBox" id="abrir-filtros-instrumentos">
-        <select><option id="texto-filtro-instrumentos">Todos los Instrumentos</option></select>
+        <select><option id="texto-filtro-instrumentos">Instrumentos</option></select>
         <div class="overSelect"></div>
       </div>
       <div id="checkboxes-instrumentos" class="checkboxes-dropdown"></div>
@@ -143,14 +143,14 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 
     <div class="multiselect">
       <div class="selectBox" id="abrir-filtros-tipos">
-        <select><option id="texto-filtro-tipos">Todos los Tipos</option></select>
+        <select><option id="texto-filtro-tipos">Tipos</option></select>
         <div class="overSelect"></div>
       </div>
       <div id="checkboxes-tipos" class="checkboxes-dropdown"></div>
     </div>
     <div class="multiselect">
       <div class="selectBox" id="abrir-filtros-escuelas-musica">
-        <select><option id="texto-filtro-escuelas-musica">Todas las Escuelas de Música</option></select>
+        <select><option id="texto-filtro-escuelas-musica">Escuelas de Música</option></select>
         <div class="overSelect"></div>
       </div>
       <div id="checkboxes-escuelas-musica" class="checkboxes-dropdown"></div>
@@ -159,7 +159,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     <div class="multiselect">
       <div class="selectBox">
         <select id="filtro-status">
-          <option value="todos">Todos los Estados</option>
+          <option value="todos">Observación</option>
           <option value="activos">Solo Activos</option>
           <option value="inativos">Solo Inactivos</option>
         </select>
@@ -478,11 +478,11 @@ function monitorarMudancasCheckboxes(idBotao, classeCheckboxes, textoPlural) {
   });
 }
 
-gerenciarBotaoAlternar("btn-toggle-provincias", "chk-provincia", "Todas las Provincias", "Provincias", textoFiltroProvincias);
-gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
-gerenciarBotaoAlternar("btn-toggle-instrumentos", "chk-instrumento", "Todos los Instrumentos", "Instrumentos", textoFiltroInstrumentos);
-gerenciarBotaoAlternar("btn-toggle-tipos", "chk-tipo", "Todos los Tipos", "Tipos", textoFiltroTipos);
-gerenciarBotaoAlternar("btn-toggle-escuelas-musica", "chk-escuela-musica", "Todas las Escuelas de Música", "Escuelas", textoFiltroEscuelasMusica);
+gerenciarBotaoAlternar("btn-toggle-provincias", "chk-provincia", "Provincias", "Provincias", textoFiltroProvincias);
+gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Iglesias", "Iglesias", textoFiltroIgrejas);
+gerenciarBotaoAlternar("btn-toggle-instrumentos", "chk-instrumento", "Instrumentos", "Instrumentos", textoFiltroInstrumentos);
+gerenciarBotaoAlternar("btn-toggle-tipos", "chk-tipo", "Tipos", "Tipos", textoFiltroTipos);
+gerenciarBotaoAlternar("btn-toggle-escuelas-musica", "chk-escuela-musica", "Escuelas de Música", "Escuelas", textoFiltroEscuelasMusica);
 
 monitorarMudancasCheckboxes("btn-toggle-provincias", "chk-provincia", "Provincias");
 monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
@@ -529,7 +529,7 @@ function pegarValoresSelecionados(className) {
 
 containerProvincias.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-provincia");
-  textoFiltroProvincias.textContent = sel.length === 0 ? "Todas las Provincias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  textoFiltroProvincias.textContent = sel.length === 0 ? "Provincias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
   
   // Recortar la lista de iglesias en el filtro cuando cambia la provincia
   const igrejasParaFiltrar = sel.length === 0 ? igrejas : sel.flatMap(p => provinciasEIgrejas[p] || []);
@@ -544,7 +544,7 @@ containerProvincias.addEventListener("change", () => {
     containerIgrejas.appendChild(label);
   });
   
-  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
+  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Iglesias", "Iglesias", textoFiltroIgrejas);
   monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
 
   atualizar();
@@ -552,12 +552,12 @@ containerProvincias.addEventListener("change", () => {
 
 containerIgrejas.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-igreja");
-  textoFiltroIgrejas.textContent = sel.length === 0 ? "Todas las Iglesias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  textoFiltroIgrejas.textContent = sel.length === 0 ? "Iglesias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
   atualizar();
 });
 containerInstrumentos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-instrumento");
-  textoFiltroInstrumentos.textContent = sel.length === 0 ? "Todos los Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Selecionados`);
+  textoFiltroInstrumentos.textContent = sel.length === 0 ? "Instrumentos" : (sel.length === 1 ? sel[0] : `${sel.length} Selecionados`);
   atualizar();
 });
 function atualizarEscuelaFormulario() {
@@ -570,13 +570,13 @@ tipo1Select.addEventListener("change", atualizarEscuelaFormulario);
 tipo2Select.addEventListener("change", atualizarEscuelaFormulario);
 containerTipos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-tipo");
-  textoFiltroTipos.textContent = sel.length === 0 ? "Todos los Tipos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
+  textoFiltroTipos.textContent = sel.length === 0 ? "Tipos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
   atualizar();
 });
 
 containerEscuelasMusica.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-escuela-musica");
-  textoFiltroEscuelasMusica.textContent = sel.length === 0 ? "Todas las Escuelas de Música" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
+  textoFiltroEscuelasMusica.textContent = sel.length === 0 ? "Escuelas de Música" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
   atualizar();
 });filtroStatus.addEventListener("change", atualizar);
 
@@ -1178,11 +1178,11 @@ btnLimparBusca.addEventListener("click", () => {
   busca.value = ""; 
   document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo, .chk-escuela-musica').forEach(chk => chk.checked = false);
   filtroStatus.value = "todos";
-  textoFiltroProvincias.textContent = "Todas las Provincias";
-  textoFiltroIgrejas.textContent = "Todas las Iglesias";
-  textoFiltroInstrumentos.textContent = "Todos los Instrumentos";
-  textoFiltroTipos.textContent = "Todos los Tipos";
-  textoFiltroEscuelasMusica.textContent = "Todas las Escuelas de Música";
+  textoFiltroProvincias.textContent = "Provincias";
+  textoFiltroIgrejas.textContent = "Iglesias";
+  textoFiltroInstrumentos.textContent = "Instrumentos";
+  textoFiltroTipos.textContent = "Tipos";
+  textoFiltroEscuelasMusica.textContent = "Escuelas de Música";
   document.getElementById("btn-toggle-provincias").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-igrejas").textContent = "Seleccionar Todas";
   document.getElementById("btn-toggle-instrumentos").textContent = "Seleccionar Todos";
@@ -1196,7 +1196,7 @@ btnLimparBusca.addEventListener("click", () => {
     label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
     containerIgrejas.appendChild(label);
   });
-  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Todas las Iglesias", "Iglesias", textoFiltroIgrejas);
+  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Iglesias", "Iglesias", textoFiltroIgrejas);
   monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
 
   atualizar();      
@@ -1204,16 +1204,3 @@ btnLimparBusca.addEventListener("click", () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
