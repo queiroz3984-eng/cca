@@ -90,6 +90,22 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 .btn-excluir-tudo:hover { background: #9c101c; }
 .btn-alternar-grafico { background: #8b5cf6; color: white; }
 .btn-alternar-grafico:hover { background: #7c3aed; }
+
+/* --- RESUMO DE MÚSICOS --- */
+.painel-resumo { display:none; background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,.08); }
+.painel-resumo h3 { margin:0 0 12px 0; color:#0078D4; }
+.resumo-selecao { font-size:13px; margin-bottom:12px; color:#555; }
+.resumo-cards { display:flex; flex-wrap:wrap; gap:12px; }
+.resumo-card { flex:1 1 180px; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:14px; text-align:center; background:#fafafa; }
+.resumo-card .titulo { font-size:12px; font-weight:bold; color:#555; text-transform:uppercase; }
+.resumo-card .numero { font-size:28px; font-weight:bold; color:#0078D4; margin-top:6px; }
+.resumo-por-igreja { margin-top:15px; width:100%; border-collapse:collapse; }
+.resumo-por-igreja th { background:#0078D4; color:#fff; padding:8px; }
+.resumo-por-igreja td { padding:8px; border:1px solid #ddd; text-align:center; }
+.resumo-por-igreja td:first-child { text-align:left; font-weight:bold; }
+.btn-resumo { background:#f59e0b; color:#fff; }
+.btn-resumo:hover { background:#d97706; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -196,8 +212,30 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar XLSX</button>
         <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XLSX</button>
         <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico">📊 Mostrar Gráfico</button>
+        <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Gerar Resumo</button>
       </div>
     </div>
+  </div>
+
+  <div class="painel-resumo" id="painel-resumo">
+    <h3>📋 Resumen de Músicos</h3>
+    <div class="resumo-selecao" id="resumo-selecao">Sin iglesias seleccionadas: se consideran todas las iglesias visibles.</div>
+    <div class="resumo-cards">
+      <div class="resumo-card">
+        <div class="titulo">Ya tocan en los cultos</div>
+        <div class="numero" id="resumo-cultos">0</div>
+        <div style="font-size:11px;color:#777;">ENC. REGIONAL · ENCARGADO · EXAMINADORA · INSTRUCTOR · OFICIALIZADO · CULTO OFICIAL</div>
+      </div>
+      <div class="resumo-card">
+        <div class="titulo">RJM / ENSAYO</div>
+        <div class="numero" id="resumo-rjm">0</div>
+      </div>
+      <div class="resumo-card">
+        <div class="titulo">Total de Alumnos</div>
+        <div class="numero" id="resumo-alunos">0</div>
+      </div>
+    </div>
+    <div id="resumo-tabela-igrejas"></div>
   </div>
 
   <form id="formMusico">
@@ -290,7 +328,7 @@ let igrejas = [];
 provincias.forEach(p => { igrejas = igrejas.concat(provinciasEIgrejas[p]); });
 igrejas = [...new Set(igrejas)].sort(); // Remover duplicados y ordenar
 
-const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBÓN","BOMBARDINO","TUBA"];
+const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA"];
 const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
 const tiposSemEscuelaMusica = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "EXAMINADO", "INSTRUCTOR", "OFICIALIZADO"];
 
@@ -320,6 +358,8 @@ const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
 const containerEscuelasMusica = document.getElementById("checkboxes-escuelas-musica");
 const textoFiltroEscuelasMusica = document.getElementById("texto-filtro-escuelas-musica");
 const filtroStatus = document.getElementById("filtro-status");
+const painelResumo = document.getElementById("painel-resumo");
+const btnGerarResumo = document.getElementById("btn-gerar-resumo");
 
 let lista = []; 
 let editKey = null; 
@@ -790,6 +830,97 @@ function obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas) 
   return pares.filter(par => parAtendeFiltros(par, instrumentosSelecionados, tiposSelecionadas));
 }
 
+
+/* --- RESUMO DE MÚSICOS POR IGLESIA --- */
+const TIPOS_CULTO_RESUMO = [
+  "ENC. REGIONAL", "ENCARGADO", "EXAMINADORA",
+  "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL"
+];
+
+function tipoPerteneceA(tipo, listaTipos) {
+  return listaTipos.includes((tipo || "").trim().toUpperCase());
+}
+
+function gerarResumoMusicos() {
+  const igrejasSelecionadas = pegarValoresSelecionados("chk-igreja");
+
+  // O resumo respeita a seleção de igrejas e também os demais filtros atuais.
+  // Se nenhuma igreja for marcada, considera todos os músicos resultantes dos demais filtros.
+  const baseResumo = filtrados.filter(m => !m.inativo);
+
+  const resumoCultos = baseResumo.filter(m =>
+    obterParesInstrumentoTipo(m).some(par => tipoPerteneceA(par.tipo, TIPOS_CULTO_RESUMO))
+  ).length;
+
+  const resumoRjm = baseResumo.filter(m =>
+    obterParesInstrumentoTipo(m).some(par => tipoPerteneceA(par.tipo, ["RJM / ENSAYO"]))
+  ).length;
+
+  // TOTAL DE ALUMNOS: considera conjuntamente CULTO OFICIAL, RJM / ENSAYO e ALUMNO.
+  const resumoAlunos = baseResumo.filter(m =>
+    obterParesInstrumentoTipo(m).some(par =>
+      tipoPerteneceA(par.tipo, ["CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"])
+    )
+  ).length;
+
+  document.getElementById("resumo-cultos").textContent = resumoCultos;
+  document.getElementById("resumo-rjm").textContent = resumoRjm;
+  document.getElementById("resumo-alunos").textContent = resumoAlunos;
+
+  const textoIgrejas = igrejasSelecionadas.length === 0
+    ? "Todas las iglesias"
+    : igrejasSelecionadas.join(", ");
+  document.getElementById("resumo-selecao").innerHTML =
+    `<strong>Iglesias seleccionadas:</strong> ${textoIgrejas}<br>
+     <strong>Registros considerados:</strong> ${baseResumo.length} músicos activos`;
+
+  // Detalle por iglesia cuando se selecciona una o más iglesias.
+  const porIglesia = {};
+  baseResumo.forEach(m => {
+    const ig = m.igreja || "SIN IGLESIA";
+    if (!porIglesia[ig]) porIglesia[ig] = { cultos:0, rjm:0, alunos:0 };
+    const pares = obterParesInstrumentoTipo(m);
+    if (pares.some(par => tipoPerteneceA(par.tipo, TIPOS_CULTO_RESUMO))) porIglesia[ig].cultos++;
+    if (pares.some(par => tipoPerteneceA(par.tipo, ["RJM / ENSAYO"]))) porIglesia[ig].rjm++;
+    if (pares.some(par => tipoPerteneceA(par.tipo, ["CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"]))) porIglesia[ig].alunos++;
+  });
+
+  const iglesiasOrdenadas = Object.keys(porIglesia).sort((a,b) => a.localeCompare(b));
+  let html = "";
+  if (iglesiasOrdenadas.length > 0) {
+    html = `
+      <table class="resumo-por-igreja">
+        <thead>
+          <tr>
+            <th>Iglesia</th>
+            <th>Ya tocan en los cultos</th>
+            <th>RJM / ENSAYO</th>
+            <th>Alumnos</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${iglesiasOrdenadas.map(ig => `
+            <tr>
+              <td>${ig}</td>
+              <td>${porIglesia[ig].cultos}</td>
+              <td>${porIglesia[ig].rjm}</td>
+              <td>${porIglesia[ig].alunos}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+  } else {
+    html = `<div style="padding:12px;color:#777;">No hay músicos activos para mostrar en el resumen.</div>`;
+  }
+
+  document.getElementById("resumo-tabela-igrejas").innerHTML = html;
+  painelResumo.style.display = "block";
+}
+
+btnGerarResumo.addEventListener("click", () => {
+  gerarResumoMusicos();
+});
+
 function atualizar(){
   const texto = busca.value.toLowerCase();
   const provinciasSelecionadas = pegarValoresSelecionados("chk-provincia");
@@ -1176,7 +1307,8 @@ cabecalhos.forEach((th, index) => { if(index < 6) { th.style.cursor = "pointer";
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
-  busca.value = ""; 
+  busca.value = "";
+  painelResumo.style.display = "none"; 
   document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo, .chk-escuela-musica').forEach(chk => chk.checked = false);
   filtroStatus.value = "todos";
   textoFiltroProvincias.textContent = "Provincias";
