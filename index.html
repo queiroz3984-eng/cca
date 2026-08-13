@@ -207,9 +207,9 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     <div class="multiselect">
       <div class="selectBox">
         <select id="filtro-parentesco">
-          <option value="todos">Hermano / Hermana</option>
-          <option value="hermano">Solo Hermano</option>
-          <option value="hermana">Solo Hermana</option>
+          <option value="todos">Hermano / hermana</option>
+          <option value="hermano">Solo hermano</option>
+          <option value="hermana">Solo hermana</option>
         </select>
       </div>
     </div>
@@ -310,7 +310,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 
     <button type="button" class="plus-btn" id="btn-mais-instrumento">+</button>
 
-    <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678" required>
+    <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678">
 
     <button type="submit">Guardar</button>
   </form>
@@ -1217,7 +1217,7 @@ function salvarInline(key, tr) {
   const provinciaNova = tr.querySelector(".edit-provincia").value;
   const escuelaMusicaNova = tr.querySelector(".edit-escuela-musica").value;
 
-  if (!nomeNovo || !contatoNovo || !igrejaNova || !provinciaNova) { alert("Por favor, complete los campos requeridos (Provincia, Iglesia, Nombre y Contacto)."); return; }
+  if (!nomeNovo || !igrejaNova || !provinciaNova) { alert("Por favor, complete los campos requeridos (Provincia, Iglesia y Nombre)."); return; }
 
   const inst1 = tr.querySelector(".edit-inst1").value;
   const selectInst2 = tr.querySelector(".edit-inst2");
