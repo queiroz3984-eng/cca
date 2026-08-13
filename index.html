@@ -54,6 +54,37 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 .bloco-instrumento { display: flex; flex-direction: column; gap: 4px; }
 .par-campos { display: inline-block; vertical-align: middle; }
 
+/* Formulário de cadastro sempre em uma única linha */
+#formMusico {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+#formMusico > select,
+#formMusico > input,
+#formMusico > button,
+#formMusico > .par-campos {
+  flex: 0 0 auto;
+}
+#formMusico .par-campos[style*="display:flex"] {
+  display: flex !important;
+  align-items: center;
+  flex: 0 0 auto;
+}
+#formMusico .par-campos label {
+  white-space: nowrap;
+}
+
+#formMusico .par-campos:has(#hermano) {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 4px !important;
+}
+
+
 /* --- PAINEL DE AÇÕES E GRÁFICO --- */
 .painel-acoes-grafico { display: flex; align-items: flex-start; justify-content: flex-end; gap: 30px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
 
@@ -175,6 +206,16 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 
     <div class="multiselect">
       <div class="selectBox">
+        <select id="filtro-parentesco">
+          <option value="todos">Hermano / Hermana</option>
+          <option value="hermano">Solo Hermano</option>
+          <option value="hermana">Solo Hermana</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="multiselect">
+      <div class="selectBox">
         <select id="filtro-status">
           <option value="todos">Observación</option>
           <option value="activos">Solo Activos</option>
@@ -211,7 +252,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         <button type="button" class="btn-excluir-tudo" id="btn-excluir-tudo">🚨 Eliminar Todo</button>
         <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar XLSX</button>
         <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XLSX</button>
-        <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico">📊 Mostrar Gráfico</button>
+        <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico" style="display:none;">📊 Gráfico sempre visível</button>
         <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Gerar Resumo</button>
       </div>
     </div>
@@ -243,6 +284,15 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     <select id="igreja" required></select>
     <select id="escuelaMusica" required></select>
     <input type="text" id="nome" placeholder="Nombre" required>
+
+    <div class="par-campos" style="display:flex; align-items:center; gap:14px; margin:5px 0 8px;">
+      <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:normal; cursor:pointer; margin:0;">
+        <input type="checkbox" id="hermano" style="width:14px; height:14px; margin:0;"> HERMANO
+      </label>
+      <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:normal; cursor:pointer; margin:0;">
+        <input type="checkbox" id="hermana" style="width:14px; height:14px; margin:0;"> HERMANA
+      </label>
+    </div>
     
     <div class="par-campos">
       <select id="instrumento1" required></select>
@@ -271,6 +321,8 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
   <th>Provincia</th>
   <th>Común Congregación</th>
   <th>Nombre</th>
+  <th>Hermano</th>
+  <th>Hermana</th>
   <th>Instrumento</th>
   <th>Tipo</th>
   <th>Escuela de Música</th>
@@ -329,6 +381,13 @@ provincias.forEach(p => { igrejas = igrejas.concat(provinciasEIgrejas[p]); });
 igrejas = [...new Set(igrejas)].sort(); // Remover duplicados y ordenar
 
 const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA"];
+
+// Ordem fixa dos instrumentos: usada em todas as pesquisas, listas, tabela e gráfico.
+const ordemInstrumentos = new Map(instrumentos.map((instrumento, indice) => [instrumento, indice]));
+function obterOrdemInstrumento(m) {
+  const primeiroInstrumento = (m?.instrumento || "").split(",")[0].trim();
+  return ordemInstrumentos.has(primeiroInstrumento) ? ordemInstrumentos.get(primeiroInstrumento) : Number.MAX_SAFE_INTEGER;
+}
 const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
 const tiposSemEscuelaMusica = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "EXAMINADO", "INSTRUCTOR", "OFICIALIZADO"];
 
@@ -346,6 +405,8 @@ const busca = document.getElementById("busca");
 const btnLimparBusca = document.getElementById("btn-limpar-busca");
 const contador = document.getElementById("contador");
 const inputContato = document.getElementById("contato");
+const chkHermano = document.getElementById("hermano");
+const chkHermana = document.getElementById("hermana");
 
 const containerProvincias = document.getElementById("checkboxes-provincias");
 const textoFiltroProvincias = document.getElementById("texto-filtro-provincias");
@@ -358,6 +419,7 @@ const textoFiltroTipos = document.getElementById("texto-filtro-tipos");
 const containerEscuelasMusica = document.getElementById("checkboxes-escuelas-musica");
 const textoFiltroEscuelasMusica = document.getElementById("texto-filtro-escuelas-musica");
 const filtroStatus = document.getElementById("filtro-status");
+const filtroParentesco = document.getElementById("filtro-parentesco");
 const painelResumo = document.getElementById("painel-resumo");
 const btnGerarResumo = document.getElementById("btn-gerar-resumo");
 
@@ -619,7 +681,9 @@ containerEscuelasMusica.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-escuela-musica");
   textoFiltroEscuelasMusica.textContent = sel.length === 0 ? "Escuelas de Música" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
   atualizar();
-});filtroStatus.addEventListener("change", atualizar);
+});
+filtroStatus.addEventListener("change", atualizar);
+filtroParentesco.addEventListener("change", atualizar);
 
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
   containerSegundoInstrumento.style.display = "inline-block";
@@ -641,6 +705,14 @@ function aplicarMascaraContato(input) {
 }
 
 aplicarMascaraContato(inputContato);
+
+// HERMANO / HERMANA: somente uma das duas opções pode ser marcada.
+chkHermano.addEventListener("change", () => {
+  if (chkHermano.checked) chkHermana.checked = false;
+});
+chkHermana.addEventListener("change", () => {
+  if (chkHermana.checked) chkHermano.checked = false;
+});
 
 document.getElementById("formMusico").addEventListener("submit", function(e){
   e.preventDefault();
@@ -664,6 +736,8 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     igreja: igrejaSelect.value,
     escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : escuelaMusicaSelect.value,
     nome: nomeEmCaixaAlta,
+    hermano: chkHermano.checked,
+    hermana: chkHermana.checked,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "), 
     contato: inputContato.value,
@@ -719,15 +793,22 @@ function atualizarGrafico(dadosFiltrados) {
 
   if (dadosFiltrados.length === 0 || totalInstrumentos === 0) return;
 
-  const labelsInst = Object.keys(contagemInstrumentos);
-  const valoresInst = Object.values(contagemInstrumentos);
+  // O gráfico também respeita a ordem oficial dos instrumentos.
+  const labelsInst = Object.keys(contagemInstrumentos).sort(
+    (a, b) => (ordemInstrumentos.get(a) ?? Number.MAX_SAFE_INTEGER) -
+              (ordemInstrumentos.get(b) ?? Number.MAX_SAFE_INTEGER)
+  );
+  const valoresInst = labelsInst.map(label => contagemInstrumentos[label]);
   const porcentagensInst = valoresInst.map(v => ((v / totalInstrumentos) * 100).toFixed(1));
 
+  // IMPORTANTE: a lista "Instrumentos (%)" deve seguir SEMPRE a ordem oficial,
+  // independentemente da quantidade de músicos de cada instrumento.
   const itensInstOrdenados = labelsInst.map((label, idx) => ({
     label,
     quantidade: valoresInst[idx],
-    porcentagem: porcentagensInst[idx]
-  })).sort((a, b) => b.quantidade - a.quantidade);
+    porcentagem: porcentagensInst[idx],
+    ordem: ordemInstrumentos.get(label) ?? Number.MAX_SAFE_INTEGER
+  })).sort((a, b) => a.ordem - b.ordem);
 
   itensInstOrdenados.forEach(item => {
     divListaPct.innerHTML += `
@@ -778,21 +859,10 @@ function atualizarGrafico(dadosFiltrados) {
   });
 }
 
-document.getElementById("btn-toggle-grafico").addEventListener("click", function() {
-  const container = document.getElementById("grafico-container");
-  const painel = document.querySelector(".painel-acoes-grafico");
-  
-  if (container.style.display === "flex") {
-    container.style.display = "none";
-    this.textContent = "📊 Mostrar Gráfico";
-    painel.style.justifyContent = "flex-end";
-  } else {
-    container.style.display = "flex";
-    this.textContent = "📊 Esconder Gráfico";
-    painel.style.justifyContent = "space-between";
-    atualizarGrafico(filtrados);
-  }
-});
+// O painel de gráfico/listas permanece sempre visível.
+// Não é permitido ocultá-lo durante a pesquisa ou atualização dos filtros.
+const graficoContainerSempreVisivel = document.getElementById("grafico-container");
+graficoContainerSempreVisivel.style.display = "flex";
 
 function obterEscuelaMusica(m) {
   if (m && tipoDispensaEscuelaMusica(m.tipo)) return "-";
@@ -801,7 +871,8 @@ function obterEscuelaMusica(m) {
 
 function obterValorOrdenacao(m, coluna) {
   if (coluna === "escuelaMusica") return obterEscuelaMusica(m).toLowerCase();
-  return m[coluna] ? m[coluna].toLowerCase() : "";
+  if (coluna === "hermano" || coluna === "hermana") return m[coluna] ? "1" : "0";
+  return m[coluna] ? String(m[coluna]).toLowerCase() : "";
 }
 
 function obterParesInstrumentoTipo(m) {
@@ -929,6 +1000,7 @@ function atualizar(){
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
   const escuelasMusicaSelecionadas = pegarValoresSelecionados("chk-escuela-musica");
   const statusSelecionado = filtroStatus.value;
+  const parentescoSelecionado = filtroParentesco.value;
 
   tabela.innerHTML = "";
   const contagemNomes = {};
@@ -943,6 +1015,8 @@ function atualizar(){
   .filter(m => {
     if (statusSelecionado === "activos" && m.inativo) return false;
     if (statusSelecionado === "inativos" && !m.inativo) return false;
+    if (parentescoSelecionado === "hermano" && !m.hermano) return false;
+    if (parentescoSelecionado === "hermana" && !m.hermana) return false;
 
     return (
       (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
@@ -953,13 +1027,21 @@ function atualizar(){
         m.nome.toLowerCase().includes(texto) ||
         (m.provincia && m.provincia.toLowerCase().includes(texto)) ||
         (m.instrumento && m.instrumento.toLowerCase().includes(texto)) ||
-        obterEscuelaMusica(m).toLowerCase().includes(texto)
+        obterEscuelaMusica(m).toLowerCase().includes(texto) ||
+        (m.hermano && "hermano".includes(texto)) ||
+        (m.hermana && "hermana".includes(texto))
       )
     );
   })
   .sort((a, b) => {
-    let valorA = obterValorOrdenacao(a, colunaOrdenada);
-    let valorB = obterValorOrdenacao(b, colunaOrdenada);
+    // A pesquisa mantém SEMPRE a ordem oficial dos instrumentos.
+    const ordemInstA = obterOrdemInstrumento(a);
+    const ordemInstB = obterOrdemInstrumento(b);
+    if (ordemInstA !== ordemInstB) return ordemInstA - ordemInstB;
+
+    // Dentro de cada instrumento, mantém a ordenação escolhida pelo cabeçalho.
+    const valorA = obterValorOrdenacao(a, colunaOrdenada);
+    const valorB = obterValorOrdenacao(b, colunaOrdenada);
     return ordemCrescente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
   });
 
@@ -994,6 +1076,8 @@ function atualizar(){
         <td><select class="edit-provincia" style="width:100%; padding:4px;">${optionsProvincias}</select></td>
         <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
         <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
+        <td style="text-align:center;"><input type="checkbox" class="edit-hermano" ${m.hermano ? 'checked' : ''} style="width:18px; height:18px;"></td>
+        <td style="text-align:center;"><input type="checkbox" class="edit-hermana" ${m.hermana ? 'checked' : ''} style="width:18px; height:18px;"></td>
         <td>
           <div class="bloco-instrumento">
             <select class="edit-inst1" style="width:100%; padding:4px;">${optionsInst1}</select>
@@ -1030,6 +1114,8 @@ function atualizar(){
       const btnMais = tr.querySelector(".btn-edit-mais");
       const selectInst2 = tr.querySelector(".edit-inst2");
       const selectTipo2 = tr.querySelector(".edit-tipo2");
+      const chkEditHermano = tr.querySelector(".edit-hermano");
+      const chkEditHermana = tr.querySelector(".edit-hermana");
       const chkEditInativo = tr.querySelector(".edit-inativo");
       const txtEditMotivo = tr.querySelector(".edit-motivo");
       const selEditProv = tr.querySelector(".edit-provincia");
@@ -1065,6 +1151,13 @@ function atualizar(){
         atualizarEscuelaEdicao();
       });
 
+      chkEditHermano.addEventListener("change", () => {
+        if (chkEditHermano.checked) chkEditHermana.checked = false;
+      });
+      chkEditHermana.addEventListener("change", () => {
+        if (chkEditHermana.checked) chkEditHermano.checked = false;
+      });
+
       chkEditInativo.addEventListener("change", () => {
         txtEditMotivo.style.display = chkEditInativo.checked ? "block" : "none";
         if (!chkEditInativo.checked) txtEditMotivo.value = "";
@@ -1091,6 +1184,8 @@ function atualizar(){
         <td>${m.provincia || ""}</td>
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
+        <td style="text-align:center;">${m.hermano ? '☑' : '☐'}</td>
+        <td style="text-align:center;">${m.hermana ? '☑' : '☐'}</td>
         <td>${htmlInstrumentos}</td>
         <td>${htmlTipos}</td>
         <td>${obterEscuelaMusica(m)}</td>
@@ -1128,6 +1223,8 @@ function salvarInline(key, tr) {
   const selectInst2 = tr.querySelector(".edit-inst2");
   const tp1 = tr.querySelector(".edit-tipo1").value;
   const selectTipo2 = tr.querySelector(".edit-tipo2");
+  const chkHermanoNovo = tr.querySelector(".edit-hermano").checked;
+  const chkHermanaNovo = tr.querySelector(".edit-hermana").checked;
   const chkInativo = tr.querySelector(".edit-inativo").checked;
   const txtMotivo = tr.querySelector(".edit-motivo").value.trim();
 
@@ -1144,6 +1241,8 @@ function salvarInline(key, tr) {
     igreja: igrejaNova,
     escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : escuelaMusicaNova,
     nome: nomeNovo,
+    hermano: chkHermanoNovo,
+    hermana: chkHermanaNovo,
     instrumento: instrumentosFinal.join(", "),
     tipo: tiposFinal.join(", "),
     contato: contatoNovo,
@@ -1164,7 +1263,7 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
   const dadosExcel = [
-    ["Provincia", "Común Congregación", "Nombre", "Instrumento", "Tipo", "Escuela de Música", "Contacto", "Inactivo", "Motivo Inactivo"]
+    ["Provincia", "Común Congregación", "Nombre", "Hermano", "Hermana", "Instrumento", "Tipo", "Escuela de Música", "Contacto", "Inactivo", "Motivo Inactivo"]
   ];
   
   filtrados.forEach(m => {
@@ -1172,6 +1271,8 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
       m.provincia || "",
       m.igreja || "",
       m.nome || "",
+      m.hermano ? "SI" : "NO",
+      m.hermana ? "SI" : "NO",
       m.instrumento || "",
       m.tipo || "",
       obterEscuelaMusica(m),
@@ -1213,6 +1314,8 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     const idxEscuelaMusica = encabezadosNormalizados.indexOf("escuela de musica");
     const idxProvincia = encabezados.indexOf("provincia");
     const idxNome = encabezados.indexOf("nombre");
+    const idxHermano = encabezados.indexOf("hermano");
+    const idxHermana = encabezados.indexOf("hermana");
     const idxInstrumento = encabezados.indexOf("instrumento");
     const idxTipo = encabezados.indexOf("tipo");
     const idxContato = encabezados.indexOf("contacto");
@@ -1235,6 +1338,8 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       const igrejaImportar = getVal(idxIgreja).toUpperCase();
       const provinciaImportar = getVal(idxProvincia).toUpperCase();
       const nomeImportar = getVal(idxNome).toUpperCase();
+      const hermanoImportar = ["SI", "TRUE", "X", "1"].includes(getVal(idxHermano).toUpperCase());
+      const hermanaImportar = ["SI", "TRUE", "X", "1"].includes(getVal(idxHermana).toUpperCase());
       const instrumentoImportar = getVal(idxInstrumento).toUpperCase();
       const tipoImportar = getVal(idxTipo).toUpperCase();
       const contatoImportar = getVal(idxContato).toUpperCase();
@@ -1259,7 +1364,9 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
         provincia: provinciaImportar,
         igreja: getVal(idxIgreja), 
         escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : getVal(idxEscuelaMusica),
-        nome: nomeImportar, 
+        nome: nomeImportar,
+        hermano: hermanoImportar && !hermanaImportar,
+        hermana: hermanaImportar && !hermanoImportar,
         instrumento: getVal(idxInstrumento), 
         tipo: getVal(idxTipo), 
         contato: getVal(idxContato),
@@ -1299,11 +1406,20 @@ const cabecalhos = document.querySelectorAll("table th");
 cabecalhos[0].addEventListener("click", () => ordenarPor("provincia"));
 cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
 cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
-cabecalhos[3].addEventListener("click", () => ordenarPor("instrumento"));
-cabecalhos[4].addEventListener("click", () => ordenarPor("tipo"));
-cabecalhos[5].addEventListener("click", () => ordenarPor("escuelaMusica"));
+cabecalhos[3].addEventListener("click", () => ordenarPor("hermano"));
+cabecalhos[4].addEventListener("click", () => ordenarPor("hermana"));
+cabecalhos[5].addEventListener("click", () => ordenarPor("instrumento"));
+cabecalhos[6].addEventListener("click", () => ordenarPor("tipo"));
+cabecalhos[7].addEventListener("click", () => ordenarPor("escuelaMusica"));
 
-cabecalhos.forEach((th, index) => { if(index < 6) { th.style.cursor = "pointer"; th.title = "Ordenar alfabéticamente"; } });
+cabecalhos.forEach((th, index) => {
+  if(index < 6) {
+    th.style.cursor = "pointer";
+    th.title = index === 3
+      ? "Orden fijo de instrumentos; haga clic para ordenar dentro de cada instrumento"
+      : "Ordenar dentro de la ordem fixa dos instrumentos";
+  }
+});
 busca.addEventListener("input", atualizar);
 
 btnLimparBusca.addEventListener("click", () => {
