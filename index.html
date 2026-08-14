@@ -301,14 +301,9 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
       </select>
     </div>
 
-    <div class="par-campos" id="container-segundo-instrumento" style="display:none;">
-      <select id="instrumento2"></select>
-      <select id="tipo2">
-        <option value="">Tipo 2</option>
-      </select>
-    </div>
+    <div id="container-instrumentos-adicionais" style="display:flex; flex-direction:column; gap:4px;"></div>
 
-    <button type="button" class="plus-btn" id="btn-mais-instrumento">+</button>
+    <button type="button" class="plus-btn" id="btn-mais-instrumento" title="Agregar otro instrumento">+</button>
 
     <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678">
 
@@ -395,10 +390,8 @@ const igrejaSelect = document.getElementById("igreja");
 const escuelaMusicaSelect = document.getElementById("escuelaMusica");
 const provinciaSelect = document.getElementById("provincia");
 const instrumento1 = document.getElementById("instrumento1");
-const instrumento2 = document.getElementById("instrumento2");
 const tipo1Select = document.getElementById("tipo");
-const tipo2Select = document.getElementById("tipo2");
-const containerSegundoInstrumento = document.getElementById("container-segundo-instrumento");
+const containerInstrumentosAdicionais = document.getElementById("container-instrumentos-adicionais");
 
 const tabela = document.getElementById("tabela");
 const busca = document.getElementById("busca");
@@ -483,16 +476,66 @@ provinciaSelect.addEventListener("change", (e) => {
 });
 
 instrumento1.innerHTML = `<option value="">Instrumento 1</option>`;
-instrumento2.innerHTML = `<option value="">Instrumento 2 (Opcional)</option>`;
-instrumentos.forEach(i=>{
-  instrumento1.innerHTML += `<option>${i}</option>`;
-  instrumento2.innerHTML += `<option>${i}</option>`;
+instrumentos.forEach(i=> {
+  instrumento1.innerHTML += `<option value="${i}">${i}</option>`;
 });
 
+tipo1Select.innerHTML = `<option value="">Tipo 1</option>`;
 tipos.forEach(t => {
-  tipo1Select.innerHTML += `<option>${t}</option>`;
-  tipo2Select.innerHTML += `<option>${t}</option>`;
+  tipo1Select.innerHTML += `<option value="${t}">${t}</option>`;
 });
+
+function criarLinhaInstrumentoExtra(indice, instrumentoValor = "", tipoValor = "") {
+  const linha = document.createElement("div");
+  linha.className = "linha-instrumento-extra";
+  linha.style.cssText = "display:flex; align-items:center; gap:4px;";
+
+  const selectInst = document.createElement("select");
+  selectInst.className = "instrumento-extra";
+  selectInst.dataset.indice = indice;
+  selectInst.style.cssText = "width:180px;";
+  selectInst.innerHTML = `<option value="">Instrumento ${indice}</option>` + instrumentos.map(i => `<option value="${i}" ${i === instrumentoValor ? "selected" : ""}>${i}</option>`).join("");
+
+  const selectTipo = document.createElement("select");
+  selectTipo.className = "tipo-extra";
+  selectTipo.dataset.indice = indice;
+  selectTipo.style.cssText = "width:180px;";
+  selectTipo.innerHTML = `<option value="">Tipo ${indice}</option>` + tipos.map(t => `<option value="${t}" ${t === tipoValor ? "selected" : ""}>${t}</option>`).join("");
+
+  const btnRemover = document.createElement("button");
+  btnRemover.type = "button";
+  btnRemover.className = "btn-remover-instrumento";
+  btnRemover.textContent = "−";
+  btnRemover.title = "Quitar instrumento";
+  btnRemover.style.cssText = "padding:4px 8px; background:#d11a2a; color:white;";
+  btnRemover.addEventListener("click", () => {
+    linha.remove();
+    renumerarInstrumentosExtras();
+    atualizarEscuelaFormulario();
+  });
+
+  linha.append(selectInst, selectTipo, btnRemover);
+  selectTipo.addEventListener("change", atualizarEscuelaFormulario);
+  selectInst.addEventListener("change", atualizarEscuelaFormulario);
+  return linha;
+}
+
+function renumerarInstrumentosExtras() {
+  [...containerInstrumentosAdicionais.querySelectorAll(".linha-instrumento-extra")].forEach((linha, index) => {
+    const numero = index + 2;
+    const inst = linha.querySelector(".instrumento-extra");
+    const tipo = linha.querySelector(".tipo-extra");
+    if (inst) { inst.dataset.indice = numero; inst.options[0].textContent = `Instrumento ${numero}`; }
+    if (tipo) { tipo.dataset.indice = numero; tipo.options[0].textContent = `Tipo ${numero}`; }
+  });
+}
+
+function adicionarInstrumentoExtra(instrumentoValor = "", tipoValor = "") {
+  const numero = containerInstrumentosAdicionais.children.length + 2;
+  containerInstrumentosAdicionais.appendChild(criarLinhaInstrumentoExtra(numero, instrumentoValor, tipoValor));
+  renumerarInstrumentosExtras();
+  atualizarEscuelaFormulario();
+}
 
 containerProvincias.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-provincias">Seleccionar Todas</a></div>`;
 containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
@@ -664,13 +707,15 @@ containerInstrumentos.addEventListener("change", () => {
   atualizar();
 });
 function atualizarEscuelaFormulario() {
-  const tiposSelecionados = [tipo1Select.value];
-  if (containerSegundoInstrumento.style.display !== "none" && tipo2Select.value) tiposSelecionados.push(tipo2Select.value);
+  const tiposSelecionados = [];
+  if (tipo1Select.value) tiposSelecionados.push(tipo1Select.value);
+  containerInstrumentosAdicionais.querySelectorAll(".tipo-extra").forEach(select => {
+    if (select.value) tiposSelecionados.push(select.value);
+  });
   atualizarEscuelaMusicaPorTipo(tiposSelecionados.join(", "), escuelaMusicaSelect);
 }
 
 tipo1Select.addEventListener("change", atualizarEscuelaFormulario);
-tipo2Select.addEventListener("change", atualizarEscuelaFormulario);
 containerTipos.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-tipo");
   textoFiltroTipos.textContent = sel.length === 0 ? "Tipos" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionados`);
@@ -686,8 +731,7 @@ filtroStatus.addEventListener("change", atualizar);
 filtroParentesco.addEventListener("change", atualizar);
 
 document.getElementById("btn-mais-instrumento").addEventListener("click", () => {
-  containerSegundoInstrumento.style.display = "inline-block";
-  atualizarEscuelaFormulario();
+  adicionarInstrumentoExtra();
 });
 
 function aplicarMascaraContato(input) {
@@ -718,16 +762,22 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   e.preventDefault();
   const inst1 = instrumento1.value;
   const tp1 = tipo1Select.value;
-  const inst2 = instrumento2.value;
-  const tp2 = tipo2Select.value;
 
-  let instrumentosFinal = [inst1];
-  let tiposFinal = [tp1];
-
-  if (containerSegundoInstrumento.style.display !== "none" && inst2) {
-    instrumentosFinal.push(inst2);
-    tiposFinal.push(tp2 || tp1);
+  let instrumentosFinal = [];
+  let tiposFinal = [];
+  if (inst1) {
+    instrumentosFinal.push(inst1);
+    tiposFinal.push(tp1);
   }
+
+  containerInstrumentosAdicionais.querySelectorAll(".linha-instrumento-extra").forEach(linha => {
+    const inst = linha.querySelector(".instrumento-extra").value;
+    const tipo = linha.querySelector(".tipo-extra").value;
+    if (inst) {
+      instrumentosFinal.push(inst);
+      tiposFinal.push(tipo || tp1);
+    }
+  });
 
   const nomeEmCaixaAlta = document.getElementById("nome").value.trim().toUpperCase();
 
@@ -755,7 +805,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
 carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
   escuelaMusicaSelect.disabled = false;
-  containerSegundoInstrumento.style.display = "none";
+  containerInstrumentosAdicionais.innerHTML = "";
 });
 
 /* --- 📊 ATUALIZAÇÃO DO GRÁFICO E LISTAS LATERAIS --- */
@@ -1068,9 +1118,27 @@ function atualizar(){
       const optionsEscuelas = `<option value="">Escuela de Música</option><option value="-" ${escuelaSelecionada === '-' ? 'selected' : ''}>-</option>` + igrejas.map(i => `<option value="${i}" ${i === escuelaSelecionada ? 'selected' : ''}>${i}</option>`).join('');
       
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
-      const optionsInst2 = instrumentos.map(i => `<option value="${i}" ${i === insts[1] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsTipo1 = tipos.map(t => `<option value="${t}" ${t === tps[0] ? 'selected' : ''}>${t}</option>`).join('');
-      const optionsTipo2 = tipos.map(t => `<option value="${t}" ${t === tps[1] ? 'selected' : ''}>${t}</option>`).join('');
+      const extrasExistentes = insts.slice(1);
+      const extrasInstrumentosHtml = extrasExistentes.map((inst, idx) => {
+        const numero = idx + 2;
+        return `<div class="edit-linha-extra" style="display:flex; gap:4px; align-items:center; margin-top:4px;">
+          <select class="edit-inst-extra" style="width:100%; padding:4px;">
+            <option value="">Instrumento ${numero}</option>
+            ${instrumentos.map(i => `<option value="${i}" ${i === inst ? 'selected' : ''}>${i}</option>`).join('')}
+          </select>
+          <button type="button" class="btn-edit-remover" style="padding:2px 6px; font-size:11px; background:#d11a2a; color:white;">−</button>
+        </div>`;
+      }).join('');
+      const extrasTiposHtml = extrasExistentes.map((tipo, idx) => {
+        const numero = idx + 2;
+        return `<div class="edit-linha-extra-tipo" style="display:flex; gap:4px; align-items:center; margin-top:4px;">
+          <select class="edit-tipo-extra" style="width:100%; padding:4px;">
+            <option value="">Tipo ${numero}</option>
+            ${tipos.map(t => `<option value="${t}" ${t === tipo ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </div>`;
+      }).join('');
 
       tr.innerHTML = `
         <td><select class="edit-provincia" style="width:100%; padding:4px;">${optionsProvincias}</select></td>
@@ -1081,20 +1149,14 @@ function atualizar(){
         <td>
           <div class="bloco-instrumento">
             <select class="edit-inst1" style="width:100%; padding:4px;">${optionsInst1}</select>
-            <select class="edit-inst2" style="width:100%; padding:4px; ${insts[1] ? '' : 'display:none;'}">
-              <option value="">Segundo Instrumento (Opcional)</option>
-              ${optionsInst2}
-            </select>
-            <button type="button" class="btn-edit-mais" style="padding:2px 6px; font-size:11px; ${insts[1] ? 'display:none;' : ''}">+</button>
+            <div class="edit-instrumentos-extras">${extrasInstrumentosHtml}</div>
+            <button type="button" class="btn-edit-mais" style="padding:2px 6px; font-size:11px;">+</button>
           </div>
         </td>
         <td>
           <div class="bloco-instrumento">
             <select class="edit-tipo1" style="width:100%; padding:4px;">${optionsTipo1}</select>
-            <select class="edit-tipo2" style="width:100%; padding:4px; ${insts[1] ? '' : 'display:none;'}">
-              <option value="">Segundo Tipo (Opcional)</option>
-              ${optionsTipo2}
-            </select>
+            <div class="edit-tipos-extras">${extrasTiposHtml}</div>
           </div>
         </td>
         <td><select class="edit-escuela-musica" style="width:100%; padding:4px;">${optionsEscuelas}</select></td>
@@ -1112,8 +1174,8 @@ function atualizar(){
       `;
 
       const btnMais = tr.querySelector(".btn-edit-mais");
-      const selectInst2 = tr.querySelector(".edit-inst2");
-      const selectTipo2 = tr.querySelector(".edit-tipo2");
+      const extrasInstContainer = tr.querySelector(".edit-instrumentos-extras");
+      const extrasTipoContainer = tr.querySelector(".edit-tipos-extras");
       const chkEditHermano = tr.querySelector(".edit-hermano");
       const chkEditHermana = tr.querySelector(".edit-hermana");
       const chkEditInativo = tr.querySelector(".edit-inativo");
@@ -1122,18 +1184,73 @@ function atualizar(){
       const selEditIg = tr.querySelector(".edit-igreja");
       const selEditEscuela = tr.querySelector(".edit-escuela-musica");
       const selEditTipo1 = tr.querySelector(".edit-tipo1");
-      const selEditTipo2 = tr.querySelector(".edit-tipo2");
+
       function atualizarEscuelaEdicao() {
-        const tiposSelecionados = [selEditTipo1.value];
-        if (selectInst2.style.display !== "none" && selEditTipo2.value) tiposSelecionados.push(selEditTipo2.value);
+        const tiposSelecionados = [];
+        if (selEditTipo1.value) tiposSelecionados.push(selEditTipo1.value);
+        tr.querySelectorAll(".edit-tipo-extra").forEach(sel => {
+          if (sel.value) tiposSelecionados.push(sel.value);
+        });
         atualizarEscuelaMusicaPorTipo(tiposSelecionados.join(", "), selEditEscuela);
       }
+
+      function adicionarInstrumentoEdicao(instValor = "", tipoValor = "") {
+        const numero = extrasInstContainer.children.length + 2;
+        const linhaInst = document.createElement("div");
+        linhaInst.className = "edit-linha-extra";
+        linhaInst.style.cssText = "display:flex; gap:4px; align-items:center; margin-top:4px;";
+        linhaInst.innerHTML = `<select class="edit-inst-extra" style="width:100%; padding:4px;"><option value="">Instrumento ${numero}</option>${instrumentos.map(i => `<option value="${i}" ${i === instValor ? 'selected' : ''}>${i}</option>`).join('')}</select><button type="button" class="btn-edit-remover" style="padding:2px 6px; font-size:11px; background:#d11a2a; color:white;">−</button>`;
+
+        const linhaTipo = document.createElement("div");
+        linhaTipo.className = "edit-linha-extra-tipo";
+        linhaTipo.style.cssText = "display:flex; gap:4px; align-items:center; margin-top:4px;";
+        linhaTipo.innerHTML = `<select class="edit-tipo-extra" style="width:100%; padding:4px;"><option value="">Tipo ${numero}</option>${tipos.map(t => `<option value="${t}" ${t === tipoValor ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+
+        extrasInstContainer.appendChild(linhaInst);
+        extrasTipoContainer.appendChild(linhaTipo);
+
+        linhaInst.querySelector(".btn-edit-remover").addEventListener("click", () => {
+          const index = [...extrasInstContainer.children].indexOf(linhaInst);
+          const linhaTipoRemover = extrasTipoContainer.children[index];
+          linhaInst.remove();
+          if (linhaTipoRemover) linhaTipoRemover.remove();
+          renumerarEdicao();
+          atualizarEscuelaEdicao();
+        });
+        linhaInst.querySelector("select").addEventListener("change", atualizarEscuelaEdicao);
+        linhaTipo.querySelector("select").addEventListener("change", atualizarEscuelaEdicao);
+        renumerarEdicao();
+      }
+
+      function renumerarEdicao() {
+        [...extrasInstContainer.children].forEach((linha, idx) => {
+          const numero = idx + 2;
+          const sel = linha.querySelector("select");
+          if (sel) sel.options[0].textContent = `Instrumento ${numero}`;
+        });
+        [...extrasTipoContainer.children].forEach((linha, idx) => {
+          const numero = idx + 2;
+          const sel = linha.querySelector("select");
+          if (sel) sel.options[0].textContent = `Tipo ${numero}`;
+        });
+      }
+
+      extrasInstContainer.querySelectorAll(".edit-linha-extra").forEach((linha, idx) => {
+        const btn = linha.querySelector(".btn-edit-remover");
+        const tipoLinha = extrasTipoContainer.children[idx];
+        btn.addEventListener("click", () => {
+          linha.remove();
+          if (tipoLinha) tipoLinha.remove();
+          renumerarEdicao();
+          atualizarEscuelaEdicao();
+        });
+        linha.querySelector("select").addEventListener("change", atualizarEscuelaEdicao);
+        if (tipoLinha) tipoLinha.querySelector("select").addEventListener("change", atualizarEscuelaEdicao);
+      });
+
       selEditTipo1.addEventListener("change", atualizarEscuelaEdicao);
-      selEditTipo2.addEventListener("change", atualizarEscuelaEdicao);
       atualizarEscuelaEdicao();
 
-      
-      // Cascading update para iglesias en modo de edición
       selEditProv.addEventListener("change", (e) => {
         const p = e.target.value;
         selEditIg.innerHTML = `<option value="">Iglesia</option>`;
@@ -1143,11 +1260,9 @@ function atualizar(){
           });
         }
       });
-      
+
       btnMais.addEventListener("click", () => {
-        selectInst2.style.display = "block";
-        selectTipo2.style.display = "block";
-        btnMais.style.display = "none";
+        adicionarInstrumentoEdicao();
         atualizarEscuelaEdicao();
       });
 
@@ -1220,21 +1335,27 @@ function salvarInline(key, tr) {
   if (!nomeNovo || !igrejaNova || !provinciaNova) { alert("Por favor, complete los campos requeridos (Provincia, Iglesia y Nombre)."); return; }
 
   const inst1 = tr.querySelector(".edit-inst1").value;
-  const selectInst2 = tr.querySelector(".edit-inst2");
   const tp1 = tr.querySelector(".edit-tipo1").value;
-  const selectTipo2 = tr.querySelector(".edit-tipo2");
   const chkHermanoNovo = tr.querySelector(".edit-hermano").checked;
   const chkHermanaNovo = tr.querySelector(".edit-hermana").checked;
   const chkInativo = tr.querySelector(".edit-inativo").checked;
   const txtMotivo = tr.querySelector(".edit-motivo").value.trim();
 
-  let instrumentosFinal = [inst1];
-  let tiposFinal = [tp1];
-
-  if (selectInst2.style.display !== "none" && selectInst2.value) {
-    instrumentosFinal.push(selectInst2.value);
-    tiposFinal.push(selectTipo2.value || tp1);
+  let instrumentosFinal = [];
+  let tiposFinal = [];
+  if (inst1) {
+    instrumentosFinal.push(inst1);
+    tiposFinal.push(tp1);
   }
+
+  const extrasInst = tr.querySelectorAll(".edit-inst-extra");
+  const extrasTipo = tr.querySelectorAll(".edit-tipo-extra");
+  extrasInst.forEach((sel, index) => {
+    if (sel.value) {
+      instrumentosFinal.push(sel.value);
+      tiposFinal.push(extrasTipo[index]?.value || tp1);
+    }
+  });
 
   const dados = {
     provincia: provinciaNova,
