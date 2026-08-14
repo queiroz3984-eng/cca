@@ -207,9 +207,9 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     <div class="multiselect">
       <div class="selectBox">
         <select id="filtro-parentesco">
-          <option value="todos">Hermano / Hermana</option>
-          <option value="hermano">Solo Hermano</option>
+          <option value="todos">Hermana / Hermano</option>
           <option value="hermana">Solo Hermana</option>
+          <option value="hermano">Solo Hermano</option>
         </select>
       </div>
     </div>
@@ -287,10 +287,10 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 
     <div class="par-campos" style="display:flex; align-items:center; gap:14px; margin:5px 0 8px;">
       <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:normal; cursor:pointer; margin:0;">
-        <input type="checkbox" id="hermano" style="width:14px; height:14px; margin:0;"> HERMANO
+        <input type="checkbox" id="hermana" style="width:14px; height:14px; margin:0;"> HERMANA
       </label>
       <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:normal; cursor:pointer; margin:0;">
-        <input type="checkbox" id="hermana" style="width:14px; height:14px; margin:0;"> HERMANA
+        <input type="checkbox" id="hermano" style="width:14px; height:14px; margin:0;"> HERMANO
       </label>
     </div>
     
@@ -321,8 +321,8 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
   <th>Provincia</th>
   <th>Común Congregación</th>
   <th>Nombre</th>
-  <th>Hermano</th>
   <th>Hermana</th>
+  <th>Hermano</th>
   <th>Instrumento</th>
   <th>Tipo</th>
   <th>Escuela de Música</th>
@@ -1076,8 +1076,8 @@ function atualizar(){
         <td><select class="edit-provincia" style="width:100%; padding:4px;">${optionsProvincias}</select></td>
         <td><select class="edit-igreja" style="width:100%; padding:4px;">${optionsIgrejas}</select></td>
         <td><input type="text" class="edit-nome" value="${m.nome}" style="width:90%; padding:4px;" required></td>
-        <td style="text-align:center;"><input type="checkbox" class="edit-hermano" ${m.hermano ? 'checked' : ''} style="width:18px; height:18px;"></td>
         <td style="text-align:center;"><input type="checkbox" class="edit-hermana" ${m.hermana ? 'checked' : ''} style="width:18px; height:18px;"></td>
+        <td style="text-align:center;"><input type="checkbox" class="edit-hermano" ${m.hermano ? 'checked' : ''} style="width:18px; height:18px;"></td>
         <td>
           <div class="bloco-instrumento">
             <select class="edit-inst1" style="width:100%; padding:4px;">${optionsInst1}</select>
@@ -1184,8 +1184,8 @@ function atualizar(){
         <td>${m.provincia || ""}</td>
         <td>${m.igreja}</td>
         <td>${m.nome}</td>
-        <td style="text-align:center;">${m.hermano ? '☑' : '☐'}</td>
         <td style="text-align:center;">${m.hermana ? '☑' : '☐'}</td>
+        <td style="text-align:center;">${m.hermano ? '☑' : '☐'}</td>
         <td>${htmlInstrumentos}</td>
         <td>${htmlTipos}</td>
         <td>${obterEscuelaMusica(m)}</td>
@@ -1271,8 +1271,8 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
       m.provincia || "",
       m.igreja || "",
       m.nome || "",
-      m.hermano ? "SI" : "NO",
       m.hermana ? "SI" : "NO",
+      m.hermano ? "SI" : "NO",
       m.instrumento || "",
       m.tipo || "",
       obterEscuelaMusica(m),
@@ -1427,6 +1427,7 @@ btnLimparBusca.addEventListener("click", () => {
   painelResumo.style.display = "none"; 
   document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo, .chk-escuela-musica').forEach(chk => chk.checked = false);
   filtroStatus.value = "todos";
+  filtroParentesco.value = "todos";
   textoFiltroProvincias.textContent = "Provincias";
   textoFiltroIgrejas.textContent = "Iglesias";
   textoFiltroInstrumentos.textContent = "Instrumentos";
