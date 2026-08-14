@@ -263,7 +263,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XLSX</button>
         <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico" style="display:none;">📊 Gráfico sempre visível</button>
         <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Gerar Resumo</button>
-        <button type="button" class="btn-migrar" id="btn-migrar-dados" style="display:none;">🔄 Migrar dados antigos</button>
+        
         <button type="button" class="btn-admin" id="btn-admin-usuarios" style="display:none;">⚙️ Administrar usuarios</button>
       </div>
     </div>
@@ -539,6 +539,19 @@ function abrirPainelAdmin() {
 
 function fecharPainelAdmin() { document.getElementById("painel-admin-usuarios").style.display = "none"; }
 
+const USUARIOS_LISTA_ORDEM = [
+  "thierrytelesnutri@gmail.com",
+  "neriva.arg@gmail.com",
+  "fernansaldivar@gmail.com",
+  "angelben1951@gmail.com",
+  "teresita.silva@gmail.com",
+  "eduardoumareco@gmail.com",
+  "weskleycarvalho7@gmail.com",
+  "marquessimario@gmail.com",
+  "dr.cerracchio@gmail.com",
+  "gabipierangelo@gmail.com"
+];
+
 async function carregarListaPermissoes() {
   const box = document.getElementById("admin-lista-usuarios");
   if (!box || !ehAdministrador()) return;
@@ -546,7 +559,20 @@ async function carregarListaPermissoes() {
     const snap = await get(ref(database, "permissoes"));
     if (!snap.exists()) { box.innerHTML = "<div style='color:#777'>Nenhum usuário cadastrado ainda.</div>"; return; }
     const dados = snap.val() || {};
-    const linhas = Object.entries(dados).map(([uid, u]) => {
+    const entradas = Object.entries(dados);
+    entradas.sort(([uidA, a], [uidB, b]) => {
+      const ea = String(a?.email || "").toLowerCase();
+      const eb = String(b?.email || "").toLowerCase();
+      const ia = USUARIOS_LISTA_ORDEM.indexOf(ea);
+      const ib = USUARIOS_LISTA_ORDEM.indexOf(eb);
+      if (ia !== -1 || ib !== -1) {
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      }
+      return ea.localeCompare(eb);
+    });
+    const linhas = entradas.map(([uid, u]) => {
       const acesso = u.todas ? "TODAS" : Object.keys(u.igrejas || {}).map(k => igrejas.find(i => chaveIgreja(i) === k) || k).join(", ");
       return `<div class="admin-usuario-linha" data-uid="${uid}">
         <div style="min-width:210px;flex:1"><strong>${u.nome || u.email || uid}</strong><br><span style="color:#666">${u.email || ""}</span><br><span class="admin-badge">${acesso || "Sem acesso"}</span></div>
@@ -845,7 +871,6 @@ let ordemCrescente = true;
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
 const btnSair = document.getElementById("btn-sair");
-const btnMigrarDados = document.getElementById("btn-migrar-dados");
 let canceladoresDados = [];
 const dadosPorIgreja = new Map();
 
@@ -946,7 +971,6 @@ btnSair.addEventListener("click", async () => {
   }
 });
 
-btnMigrarDados.addEventListener("click", migrarDadosAntigos);
 
 onAuthStateChanged(auth, async (user) => {
   usuarioAtual = user || null;
@@ -963,8 +987,15 @@ onAuthStateChanged(auth, async (user) => {
     conteudoSistema.style.display = "block";
     aplicarAcessoNaInterface();
 
-    document.getElementById("btn-migrar-dados").style.display = acessoAtual?.igrejas === "TODAS" ? "inline-block" : "none";
-    document.getElementById("btn-admin-usuarios").style.display = ehAdministrador() ? "inline-block" : "none";
+    const ehAdminAtual = ehAdministrador();
+    document.getElementById("btn-admin-usuarios").style.display = ehAdminAtual ? "inline-block" : "none";
+    if (ehAdminAtual) {
+      document.getElementById("painel-admin-usuarios").style.display = "block";
+      renderizarIgrejasAdmin();
+      carregarListaPermissoes();
+    } else {
+      fecharPainelAdmin();
+    }
     carregarDadosAutorizados();
   } else {
     telaLogin.style.display = "block";
@@ -973,7 +1004,6 @@ onAuthStateChanged(auth, async (user) => {
     tabela.innerHTML = "";
     lista = [];
     acessoAtual = null;
-    document.getElementById("btn-migrar-dados").style.display = "none";
     document.getElementById("btn-admin-usuarios").style.display = "none";
     fecharPainelAdmin();
   }
