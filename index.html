@@ -24,6 +24,10 @@ th { background:#0078D4; color:white; }
 
 #btn-sair { background:#d11a2a; color:white; font-weight:bold; padding:6px 10px; border-radius:5px; margin-left:auto; height:30px; box-sizing:border-box; flex:0 0 auto; }
 #btn-sair:hover { background:#a91420; }
+.btn-admin { background:#6b21a8; color:white; font-weight:bold; padding:6px 10px; border-radius:5px; }
+.btn-admin:hover { background:#581c87; }
+.admin-usuario-linha { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 4px; border-bottom:1px solid #eee; font-size:13px; }
+.admin-badge { padding:3px 7px; border-radius:12px; background:#eaf4ff; color:#075985; }
 
 /* Telas do Sistema */
 #tela-login { max-width: 350px; margin: 100px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); text-align: center; }
@@ -260,11 +264,35 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico" style="display:none;">📊 Gráfico sempre visível</button>
         <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Gerar Resumo</button>
         <button type="button" class="btn-migrar" id="btn-migrar-dados" style="display:none;">🔄 Migrar dados antigos</button>
+        <button type="button" class="btn-admin" id="btn-admin-usuarios" style="display:none;">⚙️ Administrar usuarios</button>
       </div>
     </div>
   </div>
 
-  <div class="painel-resumo" id="painel-resumo">
+  <div id="painel-admin-usuarios" style="display:none;background:#fff;padding:18px;border-radius:8px;margin-bottom:20px;border:1px solid #ddd;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <h3 style="margin:0;">⚙️ Administrar usuarios</h3>
+    <button type="button" id="btn-fechar-admin" class="btn-limpar">✖ Fechar</button>
+  </div>
+  <p style="font-size:13px;color:#666;">Administrador: <strong>queiroz3984@gmail.com</strong>. Aqui você pode criar novos usuários e definir as igrejas às quais terão acesso.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <input type="text" id="admin-nome" placeholder="Nome" style="width:180px;">
+    <input type="email" id="admin-email" placeholder="E-mail" style="width:230px;">
+    <input type="password" id="admin-senha" placeholder="Senha inicial" style="width:180px;">
+    <select id="admin-acesso" style="width:190px;">
+      <option value="IGREJAS">Igrejas específicas</option>
+      <option value="TODAS">Todas las iglesias</option>
+    </select>
+    <button type="button" id="btn-criar-usuario" class="btn-importar">➕ Criar usuário</button>
+  </div>
+  <div id="admin-igrejas" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow:auto;padding:8px;border:1px solid #eee;border-radius:6px;"></div>
+  <div style="margin-top:15px;">
+    <strong>Usuários cadastrados no controle de acesso</strong>
+    <div id="admin-lista-usuarios" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="painel-resumo" id="painel-resumo">
     <h3>📋 Resumen de Músicos</h3>
     <div class="resumo-selecao" id="resumo-selecao">Sin iglesias seleccionadas: se consideran todas las iglesias visibles.</div>
     <div class="resumo-cards">
@@ -338,8 +366,8 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, push, set, onValue, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDCTwZh5zlz_EBS3vjfyXKgBM-BibpMBnA",
@@ -354,6 +382,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
+
+// Instância secundária: permite ao administrador criar um novo usuário sem desconectar a sessão atual.
+const adminApp = initializeApp(firebaseConfig, "adminUserCreator");
+const adminAuth = getAuth(adminApp);
+const EMAIL_ADMINISTRADOR = "queiroz3984@gmail.com";
 
 // ============================================================
 // ACESSO PERSONALIZADO POR USUÁRIO
@@ -466,6 +499,95 @@ function obterAcessoUsuario(user) {
   const email = user.email.trim().toLowerCase();
   return USUARIOS_ACESSO[email] || null;
 }
+
+async function carregarAcessoUsuario(user) {
+  if (!user || !user.email) return null;
+  const email = user.email.trim().toLowerCase();
+  if (email === EMAIL_ADMINISTRADOR) {
+    return { nome: "Administrador", igrejas: "TODAS", podeEditar: true, podeImportar: true, podeExcluirTudo: true, administrador: true };
+  }
+  try {
+    const snap = await get(ref(database, `permissoes/${user.uid}`));
+    if (snap.exists()) {
+      const dados = snap.val() || {};
+      let igrejasAcesso = [];
+      if (dados.todas === true) igrejasAcesso = "TODAS";
+      else if (dados.igrejas && typeof dados.igrejas === "object") igrejasAcesso = Object.keys(dados.igrejas).filter(k => dados.igrejas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
+      return { nome: dados.nome || email, igrejas: igrejasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
+    }
+  } catch (e) { console.error("Erro ao carregar permissão:", e); }
+  return USUARIOS_ACESSO[email] || null;
+}
+
+function ehAdministrador() {
+  return !!usuarioAtual && usuarioAtual.email && usuarioAtual.email.trim().toLowerCase() === EMAIL_ADMINISTRADOR;
+}
+
+function renderizarIgrejasAdmin() {
+  const box = document.getElementById("admin-igrejas");
+  if (!box) return;
+  box.innerHTML = igrejas.map(ig => `<label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#f8fafc;padding:4px 7px;border-radius:4px;"><input type="checkbox" class="admin-igreja" value="${ig}"> ${ig}</label>`).join("");
+}
+
+function abrirPainelAdmin() {
+  if (!ehAdministrador()) return;
+  document.getElementById("painel-admin-usuarios").style.display = "block";
+  renderizarIgrejasAdmin();
+  carregarListaPermissoes();
+}
+
+function fecharPainelAdmin() { document.getElementById("painel-admin-usuarios").style.display = "none"; }
+
+async function carregarListaPermissoes() {
+  const box = document.getElementById("admin-lista-usuarios");
+  if (!box || !ehAdministrador()) return;
+  try {
+    const snap = await get(ref(database, "permissoes"));
+    if (!snap.exists()) { box.innerHTML = "<div style='color:#777'>Nenhum usuário cadastrado ainda.</div>"; return; }
+    const dados = snap.val() || {};
+    const linhas = Object.entries(dados).map(([uid, u]) => {
+      const acesso = u.todas ? "TODAS" : Object.keys(u.igrejas || {}).map(k => igrejas.find(i => chaveIgreja(i) === k) || k).join(", ");
+      return `<div class="admin-usuario-linha"><div><strong>${u.nome || u.email || uid}</strong><br><span style="color:#666">${u.email || ""}</span></div><span class="admin-badge">${acesso || "Sem acesso"}</span><button type="button" class="btn-limpar admin-remover-permissao" data-uid="${uid}">Remover acesso</button></div>`;
+    }).join("");
+    box.innerHTML = linhas || "<div style='color:#777'>Nenhum usuário cadastrado.</div>";
+    box.querySelectorAll(".admin-remover-permissao").forEach(btn => btn.addEventListener("click", async () => {
+      if (!confirm("Remover o acesso deste usuário? Ele continuará existindo no Authentication, mas ficará sem acesso ao sistema.")) return;
+      await remove(ref(database, `permissoes/${btn.dataset.uid}`));
+      carregarListaPermissoes();
+    }));
+  } catch (e) { box.innerHTML = "<div style='color:#b91c1c'>Não foi possível carregar as permissões. Verifique as Rules.</div>"; console.error(e); }
+}
+
+async function criarUsuarioPeloAdmin() {
+  if (!ehAdministrador()) return;
+  const nome = document.getElementById("admin-nome").value.trim();
+  const email = document.getElementById("admin-email").value.trim().toLowerCase();
+  const senha = document.getElementById("admin-senha").value;
+  const modo = document.getElementById("admin-acesso").value;
+  const selecionadas = [...document.querySelectorAll(".admin-igreja:checked")].map(c => c.value);
+  if (!email || !senha) { alert("Informe o e-mail e a senha inicial."); return; }
+  if (senha.length < 6) { alert("A senha deve ter pelo menos 6 caracteres."); return; }
+  if (modo === "IGREJAS" && selecionadas.length === 0) { alert("Selecione pelo menos uma igreja."); return; }
+  const btn = document.getElementById("btn-criar-usuario"); btn.disabled = true;
+  try {
+    const cred = await createUserWithEmailAndPassword(adminAuth, email, senha);
+    const permissoes = { email, nome: nome || email, podeEditar: true, podeImportar: true, podeExcluirTudo: true };
+    if (modo === "TODAS") permissoes.todas = true;
+    else { permissoes.igrejas = {}; selecionadas.forEach(ig => permissoes.igrejas[chaveIgreja(ig)] = true); }
+    await set(ref(database, `permissoes/${cred.user.uid}`), permissoes);
+    alert(`Usuário ${email} criado com sucesso.\n\nUID: ${cred.user.uid}`);
+    document.getElementById("admin-nome").value = ""; document.getElementById("admin-email").value = ""; document.getElementById("admin-senha").value = "";
+    document.querySelectorAll(".admin-igreja").forEach(c => c.checked = false);
+    await signOut(adminAuth);
+    carregarListaPermissoes();
+  } catch (e) {
+    console.error(e);
+    let msg = e?.message || "Erro ao criar usuário.";
+    if (e?.code === "auth/email-already-in-use") msg = "Este e-mail já está cadastrado no Firebase Authentication.";
+    alert(msg);
+  } finally { btn.disabled = false; }
+}
+
 
 function usuarioPodeIgreja(igreja) {
   if (!acessoAtual || !igreja) return false;
@@ -736,9 +858,9 @@ btnSair.addEventListener("click", async () => {
 
 btnMigrarDados.addEventListener("click", migrarDadosAntigos);
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   usuarioAtual = user || null;
-  acessoAtual = obterAcessoUsuario(user);
+  acessoAtual = await carregarAcessoUsuario(user);
 
   if (user && !acessoAtual) {
     alert(`El usuario ${user.email} no tiene permisos configurados. Solicite al administrador que lo agregue.`);
@@ -752,6 +874,7 @@ onAuthStateChanged(auth, (user) => {
     aplicarAcessoNaInterface();
 
     document.getElementById("btn-migrar-dados").style.display = acessoAtual?.igrejas === "TODAS" ? "inline-block" : "none";
+    document.getElementById("btn-admin-usuarios").style.display = ehAdministrador() ? "inline-block" : "none";
     carregarDadosAutorizados();
   } else {
     telaLogin.style.display = "block";
@@ -761,7 +884,17 @@ onAuthStateChanged(auth, (user) => {
     lista = [];
     acessoAtual = null;
     document.getElementById("btn-migrar-dados").style.display = "none";
+    document.getElementById("btn-admin-usuarios").style.display = "none";
+    fecharPainelAdmin();
   }
+});
+
+document.getElementById("btn-admin-usuarios").addEventListener("click", abrirPainelAdmin);
+document.getElementById("btn-fechar-admin").addEventListener("click", fecharPainelAdmin);
+document.getElementById("btn-criar-usuario").addEventListener("click", criarUsuarioPeloAdmin);
+document.getElementById("admin-acesso").addEventListener("change", (e) => {
+  document.getElementById("admin-igrejas").style.opacity = e.target.value === "TODAS" ? "0.45" : "1";
+  document.querySelectorAll(".admin-igreja").forEach(c => c.disabled = e.target.value === "TODAS");
 });
 
 document.getElementById("btn-entrar").addEventListener("click", () => {
