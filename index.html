@@ -144,6 +144,19 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 .btn-resumo { background:#f59e0b; color:#fff; }
 .btn-resumo:hover { background:#d97706; }
 
+
+.admin-igreja-dropdown{position:relative;width:100%;max-width:520px;}
+.admin-igreja-toggle{width:100%;height:38px;background:#fff;border:1px solid #cfd4da;border-radius:4px;text-align:left;padding:0 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;}
+.admin-igreja-menu{display:none;position:absolute;z-index:1000;left:0;right:0;top:42px;background:#fff;border:1px solid #cfd4da;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.12);padding:8px;max-height:280px;overflow:auto;}
+.admin-igreja-menu.aberto{display:block;}
+.admin-igreja-opcao{display:flex;align-items:center;gap:8px;padding:7px 8px;font-size:13px;border-radius:4px;cursor:pointer;}
+.admin-igreja-opcao:hover{background:#f3f6f9;}
+.admin-usuario-linha{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 10px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:7px;background:#fafcff;}
+.admin-usuario-dados{flex:1;min-width:260px;}
+.admin-usuario-acoes{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+.admin-badge{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:10px;background:#e8f2ff;color:#145da0;font-size:11px;}
+@media(max-width:700px){.admin-usuario-linha{flex-direction:column;align-items:stretch}.admin-usuario-acoes{justify-content:flex-start}.admin-igreja-dropdown{max-width:none}}
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -285,7 +298,12 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
     </select>
     <button type="button" id="btn-criar-usuario" class="btn-importar">➕ Criar usuário</button>
   </div>
-  <div id="admin-igrejas" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow:auto;padding:8px;border:1px solid #eee;border-radius:6px;"></div>
+  <div class="admin-igreja-dropdown" id="admin-igrejas-wrap" style="margin-top:10px;">
+    <button type="button" id="admin-igrejas-toggle" class="admin-igreja-toggle">
+      <span id="admin-igrejas-resumo">Iglesias específicas</span><span>▾</span>
+    </button>
+    <div id="admin-igrejas" class="admin-igreja-menu"></div>
+  </div>
   <div style="margin-top:15px;">
     <strong>Usuários cadastrados no controle de acesso</strong>
     <div id="admin-lista-usuarios" style="margin-top:8px;"></div>
@@ -524,11 +542,21 @@ function ehAdministrador() {
   return !!usuarioAtual && usuarioAtual.email && usuarioAtual.email.trim().toLowerCase() === EMAIL_ADMINISTRADOR;
 }
 
+function atualizarResumoIgrejasAdmin() {
+  const resumo = document.getElementById("admin-igrejas-resumo");
+  if (!resumo) return;
+  const selecionadas = [...document.querySelectorAll(".admin-igreja:checked")].map(c => c.value);
+  resumo.textContent = selecionadas.length ? `${selecionadas.length} iglesia(s) seleccionada(s)` : "Iglesias específicas";
+}
+
 function renderizarIgrejasAdmin() {
   const box = document.getElementById("admin-igrejas");
   if (!box) return;
-  box.innerHTML = igrejas.map(ig => `<label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#f8fafc;padding:4px 7px;border-radius:4px;"><input type="checkbox" class="admin-igreja" value="${ig}"> ${ig}</label>`).join("");
+  box.innerHTML = igrejas.map(ig => `<label class="admin-igreja-opcao"><input type="checkbox" class="admin-igreja" value="${ig.replace(/"/g, '&quot;')}"> <span>${ig}</span></label>`).join("");
+  box.querySelectorAll(".admin-igreja").forEach(c => c.addEventListener("change", atualizarResumoIgrejasAdmin));
+  atualizarResumoIgrejasAdmin();
 }
+
 
 function abrirPainelAdmin() {
   if (!ehAdministrador()) return;
@@ -575,8 +603,8 @@ async function carregarListaPermissoes() {
     const linhas = entradas.map(([uid, u]) => {
       const acesso = u.todas ? "TODAS" : Object.keys(u.igrejas || {}).map(k => igrejas.find(i => chaveIgreja(i) === k) || k).join(", ");
       return `<div class="admin-usuario-linha" data-uid="${uid}">
-        <div style="min-width:210px;flex:1"><strong>${u.nome || u.email || uid}</strong><br><span style="color:#666">${u.email || ""}</span><br><span class="admin-badge">${acesso || "Sem acesso"}</span></div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end">
+        <div class="admin-usuario-dados"><strong>Nome: ${u.nome || u.email || uid}</strong><br><span style="color:#555">E-mail: ${u.email || ""}</span><br><span style="color:#777;font-size:11px">Senha: •••••••• (não visível)</span><br><span class="admin-badge">Iglesias: ${acesso || "Sem acesso"}</span></div>
+        <div class="admin-usuario-acoes">
           <button type="button" class="btn-admin-editar" data-uid="${uid}">✏️ Editar</button>
           <button type="button" class="btn-admin-reset" data-email="${u.email || ""}">🔑 Redefinir senha</button>
           <button type="button" class="btn-limpar admin-remover-permissao" data-uid="${uid}">🗑️ Excluir</button>
@@ -599,6 +627,7 @@ async function carregarListaPermissoes() {
       document.querySelectorAll(".admin-igreja").forEach(c => c.checked = !!(u.igrejas && u.igrejas[chaveIgreja(c.value)]));
       document.querySelectorAll(".admin-igreja").forEach(c => c.disabled = u.todas === true);
       document.getElementById("admin-igrejas").style.opacity = u.todas ? "0.45" : "1";
+      atualizarResumoIgrejasAdmin();
       const btnCriar = document.getElementById("btn-criar-usuario");
       btnCriar.textContent = "💾 Salvar alterações";
       btnCriar.dataset.editUid = uid;
@@ -630,7 +659,7 @@ async function carregarListaPermissoes() {
         await carregarListaPermissoes();
       } catch (e) { console.error(e); alert("Não foi possível remover o acesso. Verifique as Rules do Firebase."); }
     }));
-  } catch (e) { box.innerHTML = "<div style='color:#b91c1c'>Não foi possível carregar os usuários. Verifique as Rules.</div>"; console.error(e); }
+  } catch (e) { box.innerHTML = "<div style='color:#b91c1c'>Não foi possível carregar os usuários. Verifique se as Rules permitem que o administrador leia /permissoes.</div>"; console.error(e); }
 }
 
 function limparEdicaoUsuario() {
@@ -643,6 +672,8 @@ function limparEdicaoUsuario() {
   document.querySelectorAll(".admin-igreja").forEach(c => { c.checked = false; c.disabled = false; });
   document.getElementById("admin-acesso").value = "IGREJAS";
   document.getElementById("admin-igrejas").style.opacity = "1";
+  document.getElementById("admin-igrejas")?.classList.remove("aberto");
+  atualizarResumoIgrejasAdmin();
   btn.textContent = "➕ Criar usuário";
   delete btn.dataset.editUid;
   delete btn.dataset.editando;
@@ -1009,12 +1040,23 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+document.getElementById("admin-igrejas-toggle").addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("admin-igrejas")?.classList.toggle("aberto");
+});
+document.addEventListener("click", (e) => {
+  const wrap = document.getElementById("admin-igrejas-wrap");
+  if (wrap && !wrap.contains(e.target)) document.getElementById("admin-igrejas")?.classList.remove("aberto");
+});
+
 document.getElementById("btn-admin-usuarios").addEventListener("click", abrirPainelAdmin);
 document.getElementById("btn-fechar-admin").addEventListener("click", fecharPainelAdmin);
 document.getElementById("btn-criar-usuario").addEventListener("click", criarUsuarioPeloAdmin);
 document.getElementById("admin-acesso").addEventListener("change", (e) => {
   document.getElementById("admin-igrejas").style.opacity = e.target.value === "TODAS" ? "0.45" : "1";
   document.querySelectorAll(".admin-igreja").forEach(c => c.disabled = e.target.value === "TODAS");
+  if (e.target.value === "TODAS") document.getElementById("admin-igrejas")?.classList.remove("aberto");
+  atualizarResumoIgrejasAdmin();
 });
 
 document.getElementById("btn-entrar").addEventListener("click", () => {
