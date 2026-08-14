@@ -22,6 +22,9 @@ th { background:#0078D4; color:white; }
 .btn-limpar { background: #ccc; color: #333; font-weight: bold; padding: 10px 14px; border-radius: 5px; font-size: 14px; }
 .btn-limpar:hover { background: #b5b5b5; }
 
+#btn-sair { background:#d11a2a; color:white; font-weight:bold; padding:8px 14px; border-radius:5px; float:right; margin:0 0 12px 12px; }
+#btn-sair:hover { background:#a91420; }
+
 /* Telas do Sistema */
 #tela-login { max-width: 350px; margin: 100px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); text-align: center; }
 #tela-login input { width: 90%; display: block; margin: 10px auto; padding: 10px; }
@@ -156,6 +159,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 <div id="conteudo-sistema">
 
   <img src="logo.png" class="logo-topo">
+  <button type="button" id="btn-sair" title="Cerrar sesión">🚪 Sair</button>
   <h1>Registro de Músicos CCA</h1>
 
   <div class="busca-container">
@@ -333,7 +337,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDCTwZh5zlz_EBS3vjfyXKgBM-BibpMBnA",
@@ -348,6 +352,206 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
+
+// ============================================================
+// ACESSO PERSONALIZADO POR USUÁRIO
+// ============================================================
+// Cadastre aqui o e-mail de cada usuário e as igrejas que ele pode acessar.
+// Use igrejas: "TODAS" para acesso completo.
+// podeEditar: permite editar/excluir registros das igrejas autorizadas.
+// podeImportar: permite importar XLSX.
+// podeExcluirTudo: permite usar o botão "Eliminar Todo".
+// IMPORTANTE: troque os exemplos pelos e-mails reais do Firebase Authentication.
+const USUARIOS_ACESSO = {
+  // USUÁRIOS COM ACESSO COMPLETO
+  "queiroz3984@gmail.com": {
+    nome: "Queiroz",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "marquessimario@gmail.com": {
+    nome: "Marques Simario",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "gabipierangelo@gmail.com": {
+    nome: "Gabi Pierangelo",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "dr.cerracchio@gmail.com": {
+    nome: "Dr. Cerracchio",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "eduardoumareco@gmail.com": {
+    nome: "Eduardo Umareco",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "teresita.silva@gmail.com": {
+    nome: "Teresita Silva",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "angelben1951@gmail.com": {
+    nome: "Angel Ben",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "fernansaldivar@gmail.com": {
+    nome: "Fernan Saldivar",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+  "gymichenko@gmail.com": {
+    nome: "Gymichenko",
+    igrejas: "TODAS",
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+
+  // ACESSO RESTRITO À IGREJA LA PLATA
+  "thierrytelesnutri@gmail.com": {
+    nome: "Thierry Teles",
+    igrejas: ["LA PLATA"],
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+
+  // ACESSO RESTRITO À IGREJA CAPITAL
+  "neriva.arg@gmail.com": {
+    nome: "Neriva",
+    igrejas: ["CAPITAL"],
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  },
+
+  // ACESSO RESTRITO À IGREJA SARANDI
+  "weskleycarvalho7@gmail.com": {
+    nome: "Weskley Carvalho",
+    igrejas: ["SARANDI"],
+    podeEditar: true,
+    podeImportar: true,
+    podeExcluirTudo: true
+  }
+};
+
+let usuarioAtual = null;
+let acessoAtual = null;
+
+function obterAcessoUsuario(user) {
+  if (!user || !user.email) return null;
+  const email = user.email.trim().toLowerCase();
+  return USUARIOS_ACESSO[email] || null;
+}
+
+function usuarioPodeIgreja(igreja) {
+  if (!acessoAtual || !igreja) return false;
+  if (acessoAtual.igrejas === "TODAS") return true;
+  return Array.isArray(acessoAtual.igrejas) && acessoAtual.igrejas.includes(igreja);
+}
+
+function igrejasPermitidas() {
+  if (!acessoAtual) return [];
+  if (acessoAtual.igrejas === "TODAS") return [...igrejas].sort();
+  return [...new Set((acessoAtual.igrejas || []).filter(i => igrejas.includes(i)))].sort();
+}
+
+function provinciasPermitidas() {
+  const permitidas = new Set();
+  igrejasPermitidas().forEach(ig => {
+    const provincia = provincias.find(p => (provinciasEIgrejas[p] || []).includes(ig));
+    if (provincia) permitidas.add(provincia);
+  });
+  return [...permitidas].sort();
+}
+
+function igrejasDaProvinciaPermitidas(provincia) {
+  const listaProvincia = provinciasEIgrejas[provincia] || [];
+  return listaProvincia.filter(usuarioPodeIgreja).sort();
+}
+
+function verificarPermissaoIgreja(igreja) {
+  if (!usuarioPodeIgreja(igreja)) {
+    alert("No tiene permiso para acceder a esta iglesia.");
+    return false;
+  }
+  return true;
+}
+
+function atualizarIndicadorAcesso() {
+  let indicador = document.getElementById("indicador-acesso-usuario");
+  if (!indicador) {
+    indicador = document.createElement("div");
+    indicador.id = "indicador-acesso-usuario";
+    indicador.style.cssText = "margin:8px 0;padding:8px 12px;background:#eaf4ff;border-left:4px solid #0078D4;border-radius:4px;font-size:13px;";
+    const titulo = document.querySelector("#conteudo-sistema h1");
+    if (titulo) titulo.insertAdjacentElement("afterend", indicador);
+  }
+  const listaAcesso = acessoAtual?.igrejas === "TODAS" ? "Todas las iglesias" : igrejasPermitidas().join(", ");
+  indicador.innerHTML = `<strong>Usuario:</strong> ${acessoAtual?.nome || usuarioAtual?.email || ""} &nbsp; | &nbsp; <strong>Acceso:</strong> ${listaAcesso || "Sin iglesias asignadas"}`;
+}
+
+function aplicarAcessoNaInterface() {
+  const provPermitidas = provinciasPermitidas();
+  const igPermitidas = igrejasPermitidas();
+
+  provinciaSelect.innerHTML = `<option value="">Provincia</option>`;
+  provPermitidas.forEach(p => { provinciaSelect.innerHTML += `<option value="${p}">${p}</option>`; });
+
+  igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
+  carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
+
+  containerProvincias.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-provincias">Seleccionar Todas</a></div>`;
+  provPermitidas.forEach(prov => {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${prov}" class="chk-provincia"> ${prov}`;
+    containerProvincias.appendChild(label);
+  });
+
+  reconstruirFiltroIgrejas(igPermitidas);
+  gerenciarBotaoAlternar("btn-toggle-provincias", "chk-provincia", "Provincias", "Provincias", textoFiltroProvincias);
+  monitorarMudancasCheckboxes("btn-toggle-provincias", "chk-provincia", "Provincias");
+
+  if (acessoAtual?.podeImportar) {
+    document.getElementById("btn-clique-importar").style.display = "inline-block";
+  } else {
+    document.getElementById("btn-clique-importar").style.display = "none";
+  }
+  document.getElementById("btn-excluir-tudo").style.display = acessoAtual?.podeExcluirTudo ? "inline-block" : "none";
+  atualizarIndicadorAcesso();
+}
+
+function reconstruirFiltroIgrejas(listaIgrejas) {
+  containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
+  listaIgrejas.forEach(ig => {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
+    containerIgrejas.appendChild(label);
+  });
+  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Iglesias", "Iglesias", textoFiltroIgrejas);
+  monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
+}
 
 // Nuevo diccionario extraído de tu Excel
 const provinciasEIgrejas = {
@@ -426,19 +630,35 @@ let ordemCrescente = true;
 
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
+const btnSair = document.getElementById("btn-sair");
+
+btnSair.addEventListener("click", async () => {
+  if (confirm("¿Deseja sair do sistema?")) {
+    await signOut(auth);
+  }
+});
 
 onAuthStateChanged(auth, (user) => {
+  usuarioAtual = user || null;
+  acessoAtual = obterAcessoUsuario(user);
+
+  if (user && !acessoAtual) {
+    alert(`El usuario ${user.email} no tiene permisos configurados. Solicite al administrador que lo agregue.`);
+    signOut(auth);
+    return;
+  }
+
   if (user) {
     telaLogin.style.display = "none";
     conteudoSistema.style.display = "block";
-    
+    aplicarAcessoNaInterface();
+
     onValue(ref(database, 'musicos'), (snapshot) => {
       lista = [];
       snapshot.forEach((childSnapshot) => {
-        lista.push({
-          key: childSnapshot.key,
-          ...childSnapshot.val()
-        });
+        const registro = { key: childSnapshot.key, ...childSnapshot.val() };
+        // Filtro de segurança da interface: o usuário só recebe na lista o que está autorizado a ver.
+        if (usuarioPodeIgreja(registro.igreja)) lista.push(registro);
       });
       atualizar();
     });
@@ -446,6 +666,8 @@ onAuthStateChanged(auth, (user) => {
     telaLogin.style.display = "block";
     conteudoSistema.style.display = "none";
     tabela.innerHTML = "";
+    lista = [];
+    acessoAtual = null;
   }
 });
 
@@ -469,7 +691,7 @@ provinciaSelect.addEventListener("change", (e) => {
   const prov = e.target.value;
   igrejaSelect.innerHTML = `<option value="">Iglesia</option>`;
   if (prov && provinciasEIgrejas[prov]) {
-    provinciasEIgrejas[prov].forEach(i => {
+    igrejasDaProvinciaPermitidas(prov).forEach(i => {
       igrejaSelect.innerHTML += `<option value="${i}">${i}</option>`;
     });
   }
@@ -548,11 +770,7 @@ provincias.forEach(prov => {
   label.innerHTML = `<input type="checkbox" value="${prov}" class="chk-provincia"> ${prov}`;
   containerProvincias.appendChild(label);
 });
-igrejas.forEach(ig => {
-  const label = document.createElement("label");
-  label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
-  containerIgrejas.appendChild(label);
-});
+// As igrejas do filtro são preenchidas conforme o usuário autenticado em aplicarAcessoNaInterface().
 instrumentos.forEach(inst => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${inst}" class="chk-instrumento"> ${inst}`;
@@ -586,7 +804,7 @@ function atualizarEscuelaMusicaPorTipo(tipoValor, selectEscuela) {
 }
 function carregarOpcionesEscuelaMusica(select, valorSelecionado = "") {
   select.innerHTML = `<option value="">Escuela de Música</option><option value="-" ${valorSelecionado === '-' ? 'selected' : ''}>-</option>`;
-  igrejas.forEach(i => {
+  igrejasPermitidas().forEach(i => {
     select.innerHTML += `<option value="${i}" ${i === valorSelecionado ? 'selected' : ''}>${i}</option>`;
   });
 }
@@ -678,20 +896,10 @@ containerProvincias.addEventListener("change", () => {
   textoFiltroProvincias.textContent = sel.length === 0 ? "Provincias" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
   
   // Recortar la lista de iglesias en el filtro cuando cambia la provincia
-  const igrejasParaFiltrar = sel.length === 0 ? igrejas : sel.flatMap(p => provinciasEIgrejas[p] || []);
+  const igrejasParaFiltrar = sel.length === 0 ? igrejasPermitidas() : [...new Set(sel.flatMap(p => igrejasDaProvinciaPermitidas(p)))].sort();
   const selecionadasAntes = pegarValoresSelecionados("chk-igreja");
-  
-  containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
-  
-  igrejasParaFiltrar.sort().forEach(ig => {
-    const isChecked = selecionadasAntes.includes(ig) ? "checked" : "";
-    const label = document.createElement("label");
-    label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja" ${isChecked}> ${ig}`;
-    containerIgrejas.appendChild(label);
-  });
-  
-  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Iglesias", "Iglesias", textoFiltroIgrejas);
-  monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
+  reconstruirFiltroIgrejas(igrejasParaFiltrar);
+  document.querySelectorAll(".chk-igreja").forEach(chk => { if (selecionadasAntes.includes(chk.value)) chk.checked = true; });
 
   atualizar();
 });
@@ -780,6 +988,8 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   });
 
   const nomeEmCaixaAlta = document.getElementById("nome").value.trim().toUpperCase();
+
+  if (!verificarPermissaoIgreja(igrejaSelect.value)) return;
 
   const dados = {
     provincia: provinciaSelect.value,
@@ -1110,12 +1320,12 @@ function atualizar(){
     const tps = paresDoMusico.map(par => par.tipo);
 
     if (editKey === m.key) {
-      const optionsProvincias = `<option value="">Provincia</option>` + provincias.map(p => `<option value="${p}" ${p === m.provincia ? 'selected' : ''}>${p}</option>`).join('');
+      const optionsProvincias = `<option value="">Provincia</option>` + provinciasPermitidas().map(p => `<option value="${p}" ${p === m.provincia ? 'selected' : ''}>${p}</option>`).join('');
       
-      const igsDaProvincia = m.provincia && provinciasEIgrejas[m.provincia] ? provinciasEIgrejas[m.provincia] : igrejas;
+      const igsDaProvincia = m.provincia ? igrejasDaProvinciaPermitidas(m.provincia) : igrejasPermitidas();
       const optionsIgrejas = `<option value="">Iglesia</option>` + igsDaProvincia.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
       const escuelaSelecionada = obterEscuelaMusica(m);
-      const optionsEscuelas = `<option value="">Escuela de Música</option><option value="-" ${escuelaSelecionada === '-' ? 'selected' : ''}>-</option>` + igrejas.map(i => `<option value="${i}" ${i === escuelaSelecionada ? 'selected' : ''}>${i}</option>`).join('');
+      const optionsEscuelas = `<option value="">Escuela de Música</option><option value="-" ${escuelaSelecionada === '-' ? 'selected' : ''}>-</option>` + igrejasPermitidas().map(i => `<option value="${i}" ${i === escuelaSelecionada ? 'selected' : ''}>${i}</option>`).join('');
       
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsTipo1 = tipos.map(t => `<option value="${t}" ${t === tps[0] ? 'selected' : ''}>${t}</option>`).join('');
@@ -1311,6 +1521,8 @@ function atualizar(){
           <button class="btn-excluir">🗑️</button>
         </td>
       `;
+      tr.querySelector(".btn-editar").style.display = acessoAtual?.podeEditar ? "inline-block" : "none";
+      tr.querySelector(".btn-excluir").style.display = acessoAtual?.podeEditar ? "inline-block" : "none";
       tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
       tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
     }
@@ -1357,6 +1569,9 @@ function salvarInline(key, tr) {
     }
   });
 
+  if (!verificarPermissaoIgreja(igrejaNova)) return;
+  if (!acessoAtual?.podeEditar) { alert("Su usuario no tiene permiso para editar registros."); return; }
+
   const dados = {
     provincia: provinciaNova,
     igreja: igrejaNova,
@@ -1377,7 +1592,12 @@ function salvarInline(key, tr) {
   }).catch((e) => console.error(e));
 }
 
-function excluir(key){ if(confirm("¿Realmente desea eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); } }
+function excluir(key){
+  const registro = lista.find(m => m.key === key);
+  if (!registro || !usuarioPodeIgreja(registro.igreja)) { alert("No tiene permiso para eliminar este registro."); return; }
+  if (!acessoAtual?.podeEditar) { alert("Su usuario no tiene permiso para eliminar registros."); return; }
+  if(confirm("¿Realmente desea eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); }
+}
 
 /* --- FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
 document.getElementById("btn-exportar").addEventListener("click", () => {
@@ -1496,6 +1716,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       };
       
       if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
+      if (!usuarioPodeIgreja(dados.igreja)) continue;
       push(ref(database, 'musicos'), dados);
     }
     alert(`Importación finalizada.`); event.target.value = '';
@@ -1504,19 +1725,36 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
 });
 
 document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
+  if (!acessoAtual?.podeExcluirTudo) { alert("Su usuario no tiene permiso para eliminar registros."); return; }
   if (lista.length === 0) { alert("No hay ningún registro para eliminar."); return; }
-  if (!confirm("⚠️ ATENCIÓN: Esta acción eliminará por completo a TODOS los músicos. ¿Continuar?")) return;
+
+  const accesoCompleto = acessoAtual.igrejas === "TODAS";
+  const quantidade = lista.length;
+  const mensagem = accesoCompleto
+    ? `⚠️ ATENCIÓN: Esta acción eliminará por completo a TODOS los ${quantidade} músicos del sistema. ¿Continuar?`
+    : `⚠️ ATENCIÓN: Esta acción eliminará los ${quantidade} músicos de las iglesias autorizadas para este usuario. Las demás iglesias no serán afectadas. ¿Continuar?`;
+
+  if (!confirm(mensagem)) return;
   const senhaInformada = prompt("Introduzca su contraseña:");
   if (!senhaInformada) return;
-  const usuarioAtual = auth.currentUser;
-  if (usuarioAtual && usuarioAtual.email) {
-    const credencial = EmailAuthProvider.credential(usuarioAtual.email, senhaInformada);
-    reauthenticateWithCredential(usuarioAtual, credencial).then(() => {
-      if (confirm("¿Confirmar eliminación total?")) {
-        remove(ref(database, 'musicos')).then(() => alert("💥 Datos limpios."));
-      }
-    }).catch(() => alert("❌ Contraseña incorrecta."));
-  }
+  const usuarioLogado = auth.currentUser;
+  if (!usuarioLogado || !usuarioLogado.email) return;
+
+  const credencial = EmailAuthProvider.credential(usuarioLogado.email, senhaInformada);
+  reauthenticateWithCredential(usuarioLogado, credencial).then(() => {
+    if (!confirm(accesoCompleto ? "¿Confirmar eliminación total?" : "¿Confirmar eliminación de los registros autorizados?")) return;
+
+    if (accesoCompleto) {
+      remove(ref(database, 'musicos')).then(() => alert("💥 Datos limpios."));
+    } else {
+      const eliminaciones = lista
+        .filter(m => usuarioPodeIgreja(m.igreja))
+        .map(m => remove(ref(database, 'musicos/' + m.key)));
+      Promise.all(eliminaciones)
+        .then(() => alert("💥 Se eliminaron solamente los registros de las iglesias autorizadas."))
+        .catch(() => alert("❌ No fue posible completar la eliminación."));
+    }
+  }).catch(() => alert("❌ Contraseña incorrecta."));
 });
 
 function ordenarPor(coluna) {
@@ -1560,15 +1798,8 @@ btnLimparBusca.addEventListener("click", () => {
   document.getElementById("btn-toggle-tipos").textContent = "Seleccionar Todos";
   document.getElementById("btn-toggle-escuelas-musica").textContent = "Seleccionar Todas";
   
-  // Restablecer el dropdown de iglesias a su estado completo
-  containerIgrejas.innerHTML = `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-igrejas">Seleccionar Todas</a></div>`;
-  igrejas.forEach(ig => {
-    const label = document.createElement("label");
-    label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-igreja"> ${ig}`;
-    containerIgrejas.appendChild(label);
-  });
-  gerenciarBotaoAlternar("btn-toggle-igrejas", "chk-igreja", "Iglesias", "Iglesias", textoFiltroIgrejas);
-  monitorarMudancasCheckboxes("btn-toggle-igrejas", "chk-igreja", "Iglesias");
+  // Restablecer el dropdown de iglesias solo a las iglesias autorizadas del usuario.
+  reconstruirFiltroIgrejas(igrejasPermitidas());
 
   atualizar();      
 });
