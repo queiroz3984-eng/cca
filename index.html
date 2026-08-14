@@ -259,6 +259,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XLSX</button>
         <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico" style="display:none;">📊 Gráfico sempre visível</button>
         <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Gerar Resumo</button>
+        <button type="button" class="btn-migrar" id="btn-migrar-dados" style="display:none;">🔄 Migrar dados antigos</button>
       </div>
     </div>
   </div>
@@ -632,12 +633,108 @@ let ordemCrescente = true;
 const telaLogin = document.getElementById("tela-login");
 const conteudoSistema = document.getElementById("conteudo-sistema");
 const btnSair = document.getElementById("btn-sair");
+const btnMigrarDados = document.getElementById("btn-migrar-dados");
+let canceladoresDados = [];
+const dadosPorIgreja = new Map();
+
+// A nova estrutura separa fisicamente os dados por igreja:
+// /musicosPorIglesia/{CHAVE_DA_IGREJA}/{id}
+function chaveIgreja(igreja) {
+  return String(igreja || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function refIgreja(igreja) {
+  return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}`);
+}
+
+function refRegistro(registro) {
+  const igreja = registro?.igreja || "";
+  return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}/${registro.key}`);
+}
+
+function reconstruirListaGlobal() {
+  lista = [];
+  dadosPorIgreja.forEach(registros => {
+    lista.push(...registros);
+  });
+  atualizar();
+}
+
+function desligarListenersDados() {
+  canceladoresDados.forEach(cancelar => { try { cancelar(); } catch(e) {} });
+  canceladoresDados = [];
+  dadosPorIgreja.clear();
+}
+
+async function carregarDadosAutorizados() {
+  desligarListenersDados();
+  const permitidas = igrejasPermitidas();
+  permitidas.forEach(igreja => {
+    const keyIgreja = chaveIgreja(igreja);
+    const cancelar = onValue(refIgreja(igreja), snapshot => {
+      const registros = [];
+      snapshot.forEach(childSnapshot => {
+        const valor = childSnapshot.val();
+        if (valor && valor.igreja === igreja && valor.igrejaKey === keyIgreja && usuarioPodeIgreja(valor.igreja)) {
+          registros.push({ key: childSnapshot.key, __iglesiaKey: keyIgreja, ...valor });
+        }
+      });
+      dadosPorIgreja.set(keyIgreja, registros);
+      reconstruirListaGlobal();
+    });
+    canceladoresDados.push(cancelar);
+  });
+  if (!permitidas.length) reconstruirListaGlobal();
+}
+
+async function migrarDadosAntigos() {
+  if (acessoAtual?.igrejas !== "TODAS") {
+    alert("Solo un usuario con acceso completo puede migrar los datos antiguos.");
+    return;
+  }
+  if (!confirm("Esta operación moverá los registros antiguos de /musicos a /musicosPorIglesia. Se recomienda hacer una copia de seguridad antes de continuar. ¿Desea continuar?")) return;
+
+  try {
+    const snapshot = await new Promise((resolve, reject) => {
+      onValue(ref(database, "musicos"), resolve, { onlyOnce: true });
+    });
+    let total = 0;
+    let ignorados = 0;
+    const operaciones = [];
+
+    snapshot.forEach(childSnapshot => {
+      const dados = childSnapshot.val();
+      if (!dados || !dados.igreja || !dados.nome) {
+        ignorados++;
+        return;
+      }
+      dados.igrejaKey = chaveIgreja(dados.igreja);
+      const destino = ref(database, `musicosPorIglesia/${chaveIgreja(dados.igreja)}/${childSnapshot.key}`);
+      operaciones.push(set(destino, dados).then(() => remove(childSnapshot.ref)));
+      total++;
+    });
+
+    await Promise.all(operaciones);
+    alert(`Migración finalizada. ${total} registro(s) migrado(s).${ignorados ? ` ${ignorados} elemento(s) ignorado(s).` : ""}`);
+    await carregarDadosAutorizados();
+  } catch (error) {
+    console.error(error);
+    alert("No fue posible migrar los datos antiguos. Verifique las reglas/permisiones de Firebase y vuelva a intentar.");
+  }
+}
 
 btnSair.addEventListener("click", async () => {
   if (confirm("¿Deseja sair do sistema?")) {
     await signOut(auth);
   }
 });
+
+btnMigrarDados.addEventListener("click", migrarDadosAntigos);
 
 onAuthStateChanged(auth, (user) => {
   usuarioAtual = user || null;
@@ -654,21 +751,16 @@ onAuthStateChanged(auth, (user) => {
     conteudoSistema.style.display = "block";
     aplicarAcessoNaInterface();
 
-    onValue(ref(database, 'musicos'), (snapshot) => {
-      lista = [];
-      snapshot.forEach((childSnapshot) => {
-        const registro = { key: childSnapshot.key, ...childSnapshot.val() };
-        // Filtro de segurança da interface: o usuário só recebe na lista o que está autorizado a ver.
-        if (usuarioPodeIgreja(registro.igreja)) lista.push(registro);
-      });
-      atualizar();
-    });
+    document.getElementById("btn-migrar-dados").style.display = acessoAtual?.igrejas === "TODAS" ? "inline-block" : "none";
+    carregarDadosAutorizados();
   } else {
     telaLogin.style.display = "block";
     conteudoSistema.style.display = "none";
+    desligarListenersDados();
     tabela.innerHTML = "";
     lista = [];
     acessoAtual = null;
+    document.getElementById("btn-migrar-dados").style.display = "none";
   }
 });
 
@@ -995,6 +1087,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   const dados = {
     provincia: provinciaSelect.value,
     igreja: igrejaSelect.value,
+    igrejaKey: chaveIgreja(igrejaSelect.value),
     escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : escuelaMusicaSelect.value,
     nome: nomeEmCaixaAlta,
     hermano: chkHermano.checked,
@@ -1011,7 +1104,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     alert("Este músico ya se encuentra registrado en esta iglesia.");
     return;
   }
-  push(ref(database, 'musicos'), dados);
+  push(refIgreja(dados.igreja), dados);
   document.getElementById("formMusico").reset();
   igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
 carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
@@ -1576,6 +1669,7 @@ function salvarInline(key, tr) {
   const dados = {
     provincia: provinciaNova,
     igreja: igrejaNova,
+    igrejaKey: chaveIgreja(igrejaNova),
     escuelaMusica: tipoDispensaEscuelaMusica(tiposFinal.join(", ")) ? "-" : escuelaMusicaNova,
     nome: nomeNovo,
     hermano: chkHermanoNovo,
@@ -1587,17 +1681,23 @@ function salvarInline(key, tr) {
     motivoInativo: chkInativo ? txtMotivo : ""
   };
 
-  set(ref(database, 'musicos/' + key), dados).then(() => { 
+  const registroAtual = lista.find(m => m.key === key);
+  const igrejaAnterior = registroAtual?.igreja || igrejaNova;
+  const mesmaIgreja = chaveIgreja(igrejaAnterior) === chaveIgreja(igrejaNova);
+  const refNovo = ref(database, `musicosPorIglesia/${chaveIgreja(igrejaNova)}/${key}`);
+  const refAntigo = ref(database, `musicosPorIglesia/${chaveIgreja(igrejaAnterior)}/${key}`);
+
+  (mesmaIgreja ? set(refNovo, dados) : set(refNovo, dados).then(() => remove(refAntigo))).then(() => { 
     editKey = null; 
-    atualizar();
-  }).catch((e) => console.error(e));
+    carregarDadosAutorizados();
+  }).catch((e) => { console.error(e); alert("No fue posible guardar el registro."); });
 }
 
 function excluir(key){
   const registro = lista.find(m => m.key === key);
   if (!registro || !usuarioPodeIgreja(registro.igreja)) { alert("No tiene permiso para eliminar este registro."); return; }
   if (!acessoAtual?.podeEditar) { alert("Su usuario no tiene permiso para eliminar registros."); return; }
-  if(confirm("¿Realmente desea eliminar a este músico?")) { remove(ref(database, 'musicos/' + key)); }
+  if(confirm("¿Realmente desea eliminar a este músico?")) { remove(refRegistro(registro)); }
 }
 
 /* --- FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
@@ -1705,6 +1805,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       let dados = { 
         provincia: provinciaImportar,
         igreja: getVal(idxIgreja), 
+        igrejaKey: chaveIgreja(getVal(idxIgreja)),
         escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : getVal(idxEscuelaMusica),
         nome: nomeImportar,
         hermano: hermanoImportar && !hermanaImportar,
@@ -1718,7 +1819,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       
       if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
       if (!usuarioPodeIgreja(dados.igreja)) continue;
-      push(ref(database, 'musicos'), dados);
+      push(refIgreja(dados.igreja), dados);
     }
     alert(`Importación finalizada.`); event.target.value = '';
   };
@@ -1745,16 +1846,13 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
   reauthenticateWithCredential(usuarioLogado, credencial).then(() => {
     if (!confirm(accesoCompleto ? "¿Confirmar eliminación total?" : "¿Confirmar eliminación de los registros autorizados?")) return;
 
-    if (accesoCompleto) {
-      remove(ref(database, 'musicos')).then(() => alert("💥 Datos limpios."));
-    } else {
-      const eliminaciones = lista
-        .filter(m => usuarioPodeIgreja(m.igreja))
-        .map(m => remove(ref(database, 'musicos/' + m.key)));
-      Promise.all(eliminaciones)
-        .then(() => alert("💥 Se eliminaron solamente los registros de las iglesias autorizadas."))
-        .catch(() => alert("❌ No fue posible completar la eliminación."));
-    }
+    const eliminaciones = igrejasPermitidas().map(igreja => remove(refIgreja(igreja)));
+    Promise.all(eliminaciones)
+      .then(() => {
+        carregarDadosAutorizados();
+        alert(accesoCompleto ? "💥 Datos limpios." : "💥 Se eliminaron solamente los registros de las iglesias autorizadas.");
+      })
+      .catch(() => alert("❌ No fue posible completar la eliminación."));
   }).catch(() => alert("❌ Contraseña incorrecta."));
 });
 
