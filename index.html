@@ -280,6 +280,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Gerar Resumo</button>
         
         <button type="button" class="btn-admin" id="btn-admin-usuarios" style="display:none;">⚙️ Administrar usuarios</button>
+        <button type="button" class="btn-importar" id="btn-migrar-dados" style="display:none;">🔄 Migrar dados antigos</button>
       </div>
     </div>
   </div>
@@ -807,7 +808,10 @@ async function editarUsuarioPeloAdmin(uid) {
     alert("Permissões atualizadas com sucesso.");
     limparEdicaoUsuario();
     await carregarListaPermissoes();
-  } catch (e) { console.error(e); alert("Não foi possível atualizar o usuário. Verifique as Rules."); }
+  } catch (e) {
+    console.error("Erro ao atualizar permissões:", e);
+    alert(`Não foi possível atualizar o usuário.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}\n\nVerifique se as Rules atualizadas foram publicadas no Realtime Database.`);
+  }
 }
 
 async function criarUsuarioPeloAdmin() {
@@ -923,6 +927,7 @@ function aplicarAcessoNaInterface() {
   });
 
   reconstruirFiltroIgrejas(igPermitidas);
+  reconstruirFiltroEscuelasMusica(igPermitidas);
 
   // Usuário restrito: a igreja autorizada fica selecionada automaticamente
   // e a Escola de Música correspondente também é selecionada.
@@ -945,6 +950,18 @@ function aplicarAcessoNaInterface() {
   }
   document.getElementById("btn-excluir-tudo").style.display = acessoAtual?.podeExcluirTudo ? "inline-block" : "none";
   atualizarIndicadorAcesso();
+}
+
+function reconstruirFiltroEscuelasMusica(listaIgrejas) {
+  containerEscuelasMusica.innerHTML =
+    `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-escuelas-musica">Seleccionar Todas</a></div>`;
+  ["-", ...listaIgrejas].forEach(ig => {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-escuela-musica"> ${ig}`;
+    containerEscuelasMusica.appendChild(label);
+  });
+  gerenciarBotaoAlternar("btn-toggle-escuelas-musica", "chk-escuela-musica", "Escuelas de Música", "Escuelas de Música", textoFiltroEscuelasMusica);
+  monitorarMudancasCheckboxes("btn-toggle-escuelas-musica", "chk-escuela-musica", "Escuelas de Música");
 }
 
 function reconstruirFiltroIgrejas(listaIgrejas) {
@@ -1156,6 +1173,7 @@ onAuthStateChanged(auth, async (user) => {
 
     const ehAdminAtual = ehAdministrador();
     document.getElementById("btn-admin-usuarios").style.display = ehAdminAtual ? "inline-block" : "none";
+    document.getElementById("btn-migrar-dados").style.display = ehAdminAtual ? "inline-block" : "none";
 
     // O painel de administração começa SEMPRE fechado ao entrar no sistema.
     // Ele só é aberto quando o administrador clicar em "Administrar usuarios".
@@ -1170,6 +1188,7 @@ onAuthStateChanged(auth, async (user) => {
     lista = [];
     acessoAtual = null;
     document.getElementById("btn-admin-usuarios").style.display = "none";
+    document.getElementById("btn-migrar-dados").style.display = "none";
     fecharPainelAdmin();
   }
 });
@@ -1184,6 +1203,7 @@ document.addEventListener("click", (e) => {
 });
 
 document.getElementById("btn-admin-usuarios").addEventListener("click", abrirPainelAdmin);
+document.getElementById("btn-migrar-dados").addEventListener("click", migrarDadosAntigos);
 document.getElementById("btn-fechar-admin").addEventListener("click", fecharPainelAdmin);
 document.getElementById("btn-criar-usuario").addEventListener("click", criarUsuarioPeloAdmin);
 document.getElementById("admin-acesso").addEventListener("change", (e) => {
@@ -1550,12 +1570,19 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     alert("Este músico ya se encuentra registrado en esta iglesia.");
     return;
   }
-  push(refIgreja(dados.igreja), dados);
-  document.getElementById("formMusico").reset();
-  igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
-carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
-  escuelaMusicaSelect.disabled = false;
-  containerInstrumentosAdicionais.innerHTML = "";
+  push(refIgreja(dados.igreja), dados)
+    .then(() => {
+      document.getElementById("formMusico").reset();
+      igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
+      carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
+      escuelaMusicaSelect.disabled = false;
+      containerInstrumentosAdicionais.innerHTML = "";
+    })
+    .catch((e) => {
+      console.error("Erro ao salvar músico:", e);
+      alert(`Não foi possível salvar o músico.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}\n\nVerifique as Rules e o acesso da igreja.`);
+    });
+  return;
 });
 
 /* --- 📊 ATUALIZAÇÃO DO GRÁFICO E LISTAS LATERAIS --- */
