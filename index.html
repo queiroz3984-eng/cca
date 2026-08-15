@@ -402,6 +402,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+// As permissões de leitura/escrita são controladas pelas Rules do Realtime Database.
+// O arquivo firebase-rules-ajustado.json acompanha este HTML.
 const auth = getAuth(app);
 
 // Instância secundária: permite ao administrador criar um novo usuário sem desconectar a sessão atual.
@@ -1175,6 +1177,11 @@ provinciaSelect.addEventListener("change", (e) => {
       igrejaSelect.innerHTML += `<option value="${i}">${i}</option>`;
     });
   }
+  carregarOpcionesEscuelaMusica(escuelaMusicaSelect, escuelaMusicaSelect.value, igrejaSelect.value);
+});
+
+igrejaSelect.addEventListener("change", () => {
+  carregarOpcionesEscuelaMusica(escuelaMusicaSelect, escuelaMusicaSelect.value, igrejaSelect.value);
 });
 
 instrumento1.innerHTML = `<option value="">Instrumento 1</option>`;
@@ -1282,11 +1289,23 @@ function atualizarEscuelaMusicaPorTipo(tipoValor, selectEscuela) {
     if (selectEscuela.value === "-") selectEscuela.value = "";
   }
 }
-function carregarOpcionesEscuelaMusica(select, valorSelecionado = "") {
+function carregarOpcionesEscuelaMusica(select, valorSelecionado = "", igrejaContexto = "") {
+  if (!select) return;
+  const permitidas = igrejasPermitidas();
+  // Se o usuário é responsável por apenas uma igreja, a Escola de Música
+  // fica vinculada automaticamente a essa igreja.
+  // Administradores/usuários com várias igrejas continuam podendo escolher.
+  const opcoes = igrejaContexto && permitidas.includes(igrejaContexto)
+    ? [igrejaContexto]
+    : (permitidas.length === 1 ? permitidas : permitidas);
+
   select.innerHTML = `<option value="">Escuela de Música</option><option value="-" ${valorSelecionado === '-' ? 'selected' : ''}>-</option>`;
-  igrejasPermitidas().forEach(i => {
+  opcoes.forEach(i => {
     select.innerHTML += `<option value="${i}" ${i === valorSelecionado ? 'selected' : ''}>${i}</option>`;
   });
+  if (permitidas.length === 1 && !valorSelecionado && !igrejaContexto) {
+    select.value = permitidas[0];
+  }
 }
 function gerenciarBotaoAlternar(idBotao, classeCheckboxes, textoPadrao, textoPlural, elementoTextoFiltro) {
   const botao = document.getElementById(idBotao);
@@ -1762,7 +1781,7 @@ function atualizar(){
     return (
       (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
       (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-      (escuelasMusicaSelecionadas.length === 0 || escuelasMusicaSelecionadas.includes(obterEscuelaMusica(m))) &&
+      (escuelasMusicaSelecionadas.length === 0 || (igrejasPermitidas().includes(obterEscuelaMusica(m)) && escuelasMusicaSelecionadas.includes(obterEscuelaMusica(m)))) &&
       musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
