@@ -603,8 +603,15 @@ async function carregarListaPermissoes() {
   const box = document.getElementById("admin-lista-usuarios");
   if (!box || !ehAdministrador()) return;
   try {
-    const snap = await get(ref(database, "permissoes"));
-    const dadosFirebase = snap.exists() ? (snap.val() || {}) : {};
+    let dadosFirebase = {};
+    let erroPermissoes = null;
+    try {
+      const snap = await get(ref(database, "permissoes"));
+      dadosFirebase = snap.exists() ? (snap.val() || {}) : {};
+    } catch (e) {
+      erroPermissoes = e;
+      console.error("Não foi possível ler /permissoes:", e);
+    }
     const porEmail = new Map();
 
     // 1) Mostra TODOS os usuários que já estavam cadastrados no código
@@ -677,7 +684,10 @@ async function carregarListaPermissoes() {
       </div>`;
     }).join("");
 
-    box.innerHTML = linhas || "<div style='color:#777'>Nenhum usuário cadastrado.</div>";
+    const avisoRules = erroPermissoes
+      ? `<div style="color:#b91c1c;background:#fff1f2;border:1px solid #fecdd3;padding:8px;margin-bottom:10px;border-radius:5px;font-size:12px;">Não foi possível ler /permissoes no Firebase. Os usuários antigos abaixo foram carregados do cadastro local, mas é necessário corrigir as Rules para editar/sincronizar os usuários. Erro: ${erroPermissoes?.code || erroPermissoes?.message || "permissão negada"}</div>`
+      : "";
+    box.innerHTML = avisoRules + (linhas || "<div style='color:#777'>Nenhum usuário cadastrado.</div>");
 
     box.querySelectorAll(".btn-admin-editar").forEach(btn => btn.addEventListener("click", async () => {
       const uid = btn.dataset.uid;
@@ -737,7 +747,10 @@ async function carregarListaPermissoes() {
       } catch (e) { console.error(e); alert("Não foi possível excluir o acesso. Verifique as Rules do Firebase."); }
     }));
 
-  } catch (e) { box.innerHTML = "<div style='color:#b91c1c'>Não foi possível carregar os usuários. Verifique se as Rules permitem que o administrador leia /permissoes.</div>"; console.error(e); }
+  } catch (e) {
+    box.innerHTML = `<div style='color:#b91c1c'>Não foi possível carregar os usuários. Erro do Firebase: ${e?.code || e?.message || "permissão negada"}. Verifique as Rules do Realtime Database.</div>`;
+    console.error(e);
+  }
 }
 
 function limparEdicaoUsuario() {
