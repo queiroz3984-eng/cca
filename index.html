@@ -1019,11 +1019,34 @@ function refRegistro(registro) {
   return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}/${registro.key}`);
 }
 
+// Registros de outras igrejas carregados somente quando uma Escuela de Música
+// autorizada é selecionada.
+const dadosCrossEscola = new Map();
+
 function reconstruirListaGlobal() {
   lista = [];
+  const chaves = new Set();
+
   dadosPorIgreja.forEach(registros => {
-    lista.push(...registros);
+    registros.forEach(registro => {
+      const id = `${registro.__iglesiaKey || chaveIgreja(registro.igreja)}::${registro.key}`;
+      if (!chaves.has(id)) {
+        chaves.add(id);
+        lista.push(registro);
+      }
+    });
   });
+
+  dadosCrossEscola.forEach(registros => {
+    registros.forEach(registro => {
+      const id = `${registro.__iglesiaKey || chaveIgreja(registro.igreja)}::${registro.key}`;
+      if (!chaves.has(id)) {
+        chaves.add(id);
+        lista.push(registro);
+      }
+    });
+  });
+
   atualizar();
 }
 
@@ -1031,11 +1054,15 @@ function desligarListenersDados() {
   canceladoresDados.forEach(cancelar => { try { cancelar(); } catch(e) {} });
   canceladoresDados = [];
   dadosPorIgreja.clear();
+  dadosCrossEscola.clear();
 }
 
 async function carregarDadosAutorizados() {
   desligarListenersDados();
+
+  // Entrada normal: carrega apenas as igrejas autorizadas.
   const permitidas = igrejasPermitidas();
+
   permitidas.forEach(igreja => {
     const keyIgreja = chaveIgreja(igreja);
     const cancelar = onValue(refIgreja(igreja), snapshot => {
@@ -1048,10 +1075,66 @@ async function carregarDadosAutorizados() {
       });
       dadosPorIgreja.set(keyIgreja, registros);
       reconstruirListaGlobal();
+    }, error => {
+      console.error(`No fue posible leer ${igreja}:`, error);
     });
     canceladoresDados.push(cancelar);
   });
+
   if (!permitidas.length) reconstruirListaGlobal();
+}
+
+// Quando o usuário seleciona uma Escuela de Música autorizada, consulta as
+// demais igrejas para encontrar alunos dessa escola, mesmo que pertençam a
+// outra igreja (ex.: usuário SARANDI encontra aluno de LAFERRERE que estuda
+// em SARANDI).
+async function carregarAlunosPorEscuelasSelecionadas(escuelasSelecionadas) {
+  dadosCrossEscola.clear();
+
+  if (!Array.isArray(escuelasSelecionadas) || escuelasSelecionadas.length === 0) {
+    reconstruirListaGlobal();
+    return;
+  }
+
+  const escolasAcessiveis = new Set(igrejasPermitidas());
+  const escolasAlvo = escuelasSelecionadas.filter(escola => escolasAcessiveis.has(escola));
+
+  if (escolasAlvo.length === 0) {
+    reconstruirListaGlobal();
+    return;
+  }
+
+  const igrejasParaConsultar = [...igrejas].filter(igreja => !usuarioPodeIgreja(igreja));
+
+  await Promise.all(igrejasParaConsultar.map(async (igreja) => {
+    const keyIgreja = chaveIgreja(igreja);
+
+    try {
+      const snapshot = await get(refIgreja(igreja));
+      const registros = [];
+
+      snapshot.forEach(childSnapshot => {
+        const valor = childSnapshot.val();
+        if (!valor || valor.igreja !== igreja || valor.igrejaKey !== keyIgreja) return;
+
+        const escola = obterEscuelaMusica(valor);
+        if (escolasAlvo.includes(escola)) {
+          registros.push({
+            key: childSnapshot.key,
+            __iglesiaKey: keyIgreja,
+            __acessoPorEscuela: true,
+            ...valor
+          });
+        }
+      });
+
+      if (registros.length) dadosCrossEscola.set(keyIgreja, registros);
+    } catch (error) {
+      console.warn(`No fue posible consultar ${igreja} para Escuela de Música:`, error);
+    }
+  }));
+
+  reconstruirListaGlobal();
 }
 
 async function migrarDadosAntigos() {
@@ -1114,13 +1197,11 @@ onAuthStateChanged(auth, async (user) => {
 
     const ehAdminAtual = ehAdministrador();
     document.getElementById("btn-admin-usuarios").style.display = ehAdminAtual ? "inline-block" : "none";
-    if (ehAdminAtual) {
-      document.getElementById("painel-admin-usuarios").style.display = "block";
-      renderizarIgrejasAdmin();
-      carregarListaPermissoes();
-    } else {
-      fecharPainelAdmin();
-    }
+
+    // O painel de administração começa SEMPRE fechado ao entrar no sistema.
+    // Ele só é aberto quando o administrador clicar em "Administrar usuarios".
+    fecharPainelAdmin();
+
     carregarDadosAutorizados();
   } else {
     telaLogin.style.display = "block";
@@ -1412,10 +1493,10 @@ containerTipos.addEventListener("change", () => {
   atualizar();
 });
 
-containerEscuelasMusica.addEventListener("change", () => {
+containerEscuelasMusica.addEventListener("change", async () => {
   const sel = pegarValoresSelecionados("chk-escuela-musica");
   textoFiltroEscuelasMusica.textContent = sel.length === 0 ? "Escuelas de Música" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
-  atualizar();
+  await carregarAlunosPorEscuelasSelecionadas(sel);
 });
 filtroStatus.addEventListener("change", atualizar);
 filtroParentesco.addEventListener("change", atualizar);
@@ -1744,6 +1825,7 @@ function atualizar(){
   const escuelasMusicaSelecionadas = pegarValoresSelecionados("chk-escuela-musica");
   const statusSelecionado = filtroStatus.value;
   const parentescoSelecionado = filtroParentesco.value;
+  const escolasAcessiveis = new Set(igrejasPermitidas());
 
   tabela.innerHTML = "";
   const contagemNomes = {};
@@ -1761,10 +1843,26 @@ function atualizar(){
     if (parentescoSelecionado === "hermano" && !m.hermano) return false;
     if (parentescoSelecionado === "hermana" && !m.hermana) return false;
 
+    const escolaDoRegistro = obterEscuelaMusica(m);
+    const filtroPorEscuelaAtivo = escuelasMusicaSelecionadas.length > 0;
+    const acessoPelaEscola =
+      filtroPorEscuelaAtivo &&
+      escuelasMusicaSelecionadas.includes(escolaDoRegistro) &&
+      escolasAcessiveis.has(escolaDoRegistro);
+
+    // REGRA PRINCIPAL DA ESCUELA DE MÚSICA:
+    // quando o usuário escolhe uma Escuela de Música (ex.: SARANDI),
+    // a igreja de cadastro do aluno deixa de ser um filtro. Assim,
+    // um aluno de LAFERRERE, CARLOS SPEGAZZINI etc. que estuda em SARANDI
+    // também aparece. A Escuela de Música passa a ser o filtro principal.
+    // Provincia e Iglesia são respeitadas normalmente somente quando
+    // nenhuma Escuela de Música estiver selecionada.
     return (
-      (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
-      (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-      (escuelasMusicaSelecionadas.length === 0 || escuelasMusicaSelecionadas.includes(obterEscuelaMusica(m))) &&
+      (usuarioPodeIgreja(m.igreja) || acessoPelaEscola) &&
+      (filtroPorEscuelaAtivo
+        ? escuelasMusicaSelecionadas.includes(escolaDoRegistro)
+        : (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
+          (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja))) &&
       musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
@@ -1777,15 +1875,22 @@ function atualizar(){
     );
   })
   .sort((a, b) => {
-    // A pesquisa mantém SEMPRE a ordem oficial dos instrumentos.
-    const ordemInstA = obterOrdemInstrumento(a);
-    const ordemInstB = obterOrdemInstrumento(b);
-    if (ordemInstA !== ordemInstB) return ordemInstA - ordemInstB;
-
-    // Dentro de cada instrumento, mantém a ordenação escolhida pelo cabeçalho.
+    // A coluna clicada passa a ser o critério PRINCIPAL.
+    // Ex.: ao clicar em "Nombre", todos os nomes ficam em ordem alfabética.
     const valorA = obterValorOrdenacao(a, colunaOrdenada);
     const valorB = obterValorOrdenacao(b, colunaOrdenada);
-    return ordemCrescente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
+    const comparacao = valorA.localeCompare(
+      valorB,
+      "es",
+      { sensitivity: "base", numeric: true }
+    );
+
+    if (comparacao !== 0) {
+      return ordemCrescente ? comparacao : -comparacao;
+    }
+
+    // Em caso de empate, mantém a ordem oficial dos instrumentos.
+    return obterOrdemInstrumento(a) - obterOrdemInstrumento(b);
   });
 
   filtrados.forEach((m)=>{
@@ -2004,8 +2109,9 @@ function atualizar(){
           <button class="btn-excluir">🗑️</button>
         </td>
       `;
-      tr.querySelector(".btn-editar").style.display = acessoAtual?.podeEditar ? "inline-block" : "none";
-      tr.querySelector(".btn-excluir").style.display = acessoAtual?.podeEditar ? "inline-block" : "none";
+      const podeEditarRegistro = acessoAtual?.podeEditar && usuarioPodeIgreja(m.igreja);
+      tr.querySelector(".btn-editar").style.display = podeEditarRegistro ? "inline-block" : "none";
+      tr.querySelector(".btn-excluir").style.display = podeEditarRegistro ? "inline-block" : "none";
       tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
       tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
     }
@@ -2246,26 +2352,34 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
 });
 
 function ordenarPor(coluna) {
-  if (colunaOrdenada === coluna) { ordemCrescente = !ordemCrescente; } else { colunaOrdenada = coluna; ordemCrescente = true; }
+  if (colunaOrdenada === coluna) {
+    ordemCrescente = !ordemCrescente;
+  } else {
+    colunaOrdenada = coluna;
+    ordemCrescente = true;
+  }
   atualizar();
 }
+
 const cabecalhos = document.querySelectorAll("table th");
-cabecalhos[0].addEventListener("click", () => ordenarPor("provincia"));
-cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
-cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
-cabecalhos[3].addEventListener("click", () => ordenarPor("hermano"));
-cabecalhos[4].addEventListener("click", () => ordenarPor("hermana"));
-cabecalhos[5].addEventListener("click", () => ordenarPor("instrumento"));
-cabecalhos[6].addEventListener("click", () => ordenarPor("tipo"));
-cabecalhos[7].addEventListener("click", () => ordenarPor("escuelaMusica"));
+const colunasOrdenaveis = [
+  "provincia",
+  "igreja",
+  "nome",
+  "hermana",
+  "hermano",
+  "instrumento",
+  "tipo",
+  "escuelaMusica"
+];
 
 cabecalhos.forEach((th, index) => {
-  if(index < 6) {
-    th.style.cursor = "pointer";
-    th.title = index === 3
-      ? "Orden fijo de instrumentos; haga clic para ordenar dentro de cada instrumento"
-      : "Ordenar dentro de la ordem fixa dos instrumentos";
-  }
+  const coluna = colunasOrdenaveis[index];
+  if (!coluna) return;
+
+  th.style.cursor = "pointer";
+  th.title = `Ordenar por ${th.textContent.trim()}`;
+  th.addEventListener("click", () => ordenarPor(coluna));
 });
 busca.addEventListener("input", atualizar);
 
@@ -2288,6 +2402,7 @@ btnLimparBusca.addEventListener("click", () => {
   
   // Restablecer el dropdown de iglesias solo a las iglesias autorizadas del usuario.
   reconstruirFiltroIgrejas(igrejasPermitidas());
+  dadosCrossEscola.clear();
 
   atualizar();      
 });
