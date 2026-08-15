@@ -518,14 +518,18 @@ let acessoAtual = null;
 function obterAcessoUsuario(user) {
   if (!user || !user.email) return null;
   const email = user.email.trim().toLowerCase();
-  return USUARIOS_ACESSO[email] || null;
+  const legado = USUARIOS_ACESSO[email] || null;
+  if (legado) {
+    legado.escuelas = legado.igrejas === "TODAS" ? "TODAS" : [...(legado.igrejas || [])];
+  }
+  return legado;
 }
 
 async function carregarAcessoUsuario(user) {
   if (!user || !user.email) return null;
   const email = user.email.trim().toLowerCase();
   if (email === EMAIL_ADMINISTRADOR) {
-    return { nome: "Administrador", igrejas: "TODAS", podeEditar: true, podeImportar: true, podeExcluirTudo: true, administrador: true };
+    return { nome: "Administrador", igrejas: "TODAS", escuelas: "TODAS", podeEditar: true, podeImportar: true, podeExcluirTudo: true, administrador: true };
   }
   try {
     // Primeiro procura a permissão vinculada ao UID atual.
@@ -536,7 +540,11 @@ async function carregarAcessoUsuario(user) {
       let igrejasAcesso = [];
       if (dados.todas === true) igrejasAcesso = "TODAS";
       else if (dados.igrejas && typeof dados.igrejas === "object") igrejasAcesso = Object.keys(dados.igrejas).filter(k => dados.igrejas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
-      return { nome: dados.nome || email, igrejas: igrejasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
+      let escuelasAcesso = [];
+      if (dados.todas === true) escuelasAcesso = "TODAS";
+      else if (dados.escuelas && typeof dados.escuelas === "object") escuelasAcesso = Object.keys(dados.escuelas).filter(k => dados.escuelas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
+      else escuelasAcesso = Array.isArray(igrejasAcesso) ? [...igrejasAcesso] : "TODAS";
+      return { nome: dados.nome || email, igrejas: igrejasAcesso, escuelas: escuelasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
     }
 
     // Permissões editadas pelo administrador para usuários antigos que
@@ -549,10 +557,17 @@ async function carregarAcessoUsuario(user) {
       let igrejasAcesso = [];
       if (dados.todas === true) igrejasAcesso = "TODAS";
       else if (dados.igrejas && typeof dados.igrejas === "object") igrejasAcesso = Object.keys(dados.igrejas).filter(k => dados.igrejas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
-      return { nome: dados.nome || email, igrejas: igrejasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
+      let escuelasAcesso = [];
+      if (dados.todas === true) escuelasAcesso = "TODAS";
+      else if (dados.escuelas && typeof dados.escuelas === "object") escuelasAcesso = Object.keys(dados.escuelas).filter(k => dados.escuelas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
+      else escuelasAcesso = Array.isArray(igrejasAcesso) ? [...igrejasAcesso] : "TODAS";
+      return { nome: dados.nome || email, igrejas: igrejasAcesso, escuelas: escuelasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
     }
   } catch (e) { console.error("Erro ao carregar permissão:", e); }
-  return USUARIOS_ACESSO[email] || null;
+  const legado = USUARIOS_ACESSO[email] || null;
+  if (!legado) return null;
+  return { ...legado, escuelas: legado.igrejas === "TODAS" ? "TODAS" : [...(legado.igrejas || [])] };
+
 }
 
 function ehAdministrador() {
@@ -998,9 +1013,9 @@ const conteudoSistema = document.getElementById("conteudo-sistema");
 const btnSair = document.getElementById("btn-sair");
 let canceladoresDados = [];
 const dadosPorIgreja = new Map();
+const dadosPorEscuela = new Map();
 
-// A nova estrutura separa fisicamente os dados por igreja:
-// /musicosPorIglesia/{CHAVE_DA_IGREJA}/{id}
+// Dados oficiais continuam separados por igreja.
 function chaveIgreja(igreja) {
   return String(igreja || "")
     .normalize("NFD")
@@ -1009,44 +1024,26 @@ function chaveIgreja(igreja) {
     .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 }
+function chaveEscuela(escuela) { return chaveIgreja(escuela); }
+function refIgreja(igreja) { return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}`); }
+function refRegistro(registro) { return ref(database, `musicosPorIglesia/${chaveIgreja(registro?.igreja || "")}/${registro.key}`); }
+function refEscuela(escuela) { return ref(database, `musicosPorEscuela/${chaveEscuela(escuela)}`); }
+function refIndiceEscuela(escuela, igreja, key) { return ref(database, `musicosPorEscuela/${chaveEscuela(escuela)}/${chaveIgreja(igreja)}/${key}`); }
 
-function refIgreja(igreja) {
-  return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}`);
+function escolasPermitidas() {
+  if (!acessoAtual) return [];
+  if (acessoAtual.escuelas === "TODAS") return [...igrejas].sort();
+  return [...new Set((acessoAtual.escuelas || []).filter(i => igrejas.includes(i)))].sort();
 }
-
-function refRegistro(registro) {
-  const igreja = registro?.igreja || "";
-  return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}/${registro.key}`);
-}
-
-// Registros de outras igrejas carregados somente quando uma Escuela de Música
-// autorizada é selecionada.
-const dadosCrossEscola = new Map();
 
 function reconstruirListaGlobal() {
-  lista = [];
-  const chaves = new Set();
-
-  dadosPorIgreja.forEach(registros => {
-    registros.forEach(registro => {
-      const id = `${registro.__iglesiaKey || chaveIgreja(registro.igreja)}::${registro.key}`;
-      if (!chaves.has(id)) {
-        chaves.add(id);
-        lista.push(registro);
-      }
-    });
-  });
-
-  dadosCrossEscola.forEach(registros => {
-    registros.forEach(registro => {
-      const id = `${registro.__iglesiaKey || chaveIgreja(registro.igreja)}::${registro.key}`;
-      if (!chaves.has(id)) {
-        chaves.add(id);
-        lista.push(registro);
-      }
-    });
-  });
-
+  const mapa = new Map();
+  dadosPorIgreja.forEach(registros => registros.forEach(r => mapa.set(`${r.__iglesiaKey}|${r.key}`, r)));
+  dadosPorEscuela.forEach(registros => registros.forEach(r => {
+    const id = `${r.__iglesiaKey}|${r.key}`;
+    if (!mapa.has(id)) mapa.set(id, r);
+  }));
+  lista = [...mapa.values()];
   atualizar();
 }
 
@@ -1054,87 +1051,93 @@ function desligarListenersDados() {
   canceladoresDados.forEach(cancelar => { try { cancelar(); } catch(e) {} });
   canceladoresDados = [];
   dadosPorIgreja.clear();
-  dadosCrossEscola.clear();
+  dadosPorEscuela.clear();
 }
 
-async function carregarDadosAutorizados() {
-  desligarListenersDados();
-
-  // Entrada normal: carrega apenas as igrejas autorizadas.
-  const permitidas = igrejasPermitidas();
-
-  permitidas.forEach(igreja => {
-    const keyIgreja = chaveIgreja(igreja);
-    const cancelar = onValue(refIgreja(igreja), snapshot => {
-      const registros = [];
-      snapshot.forEach(childSnapshot => {
-        const valor = childSnapshot.val();
-        if (valor && valor.igreja === igreja && valor.igrejaKey === keyIgreja && usuarioPodeIgreja(valor.igreja)) {
-          registros.push({ key: childSnapshot.key, __iglesiaKey: keyIgreja, ...valor });
-        }
-      });
-      dadosPorIgreja.set(keyIgreja, registros);
-      reconstruirListaGlobal();
-    }, error => {
-      console.error(`No fue posible leer ${igreja}:`, error);
+function registrarListenerIgreja(igreja) {
+  const keyIgreja = chaveIgreja(igreja);
+  const cancelar = onValue(refIgreja(igreja), snapshot => {
+    const registros = [];
+    snapshot.forEach(childSnapshot => {
+      const valor = childSnapshot.val();
+      if (valor && chaveIgreja(valor.igreja) === keyIgreja && usuarioPodeIgreja(valor.igreja)) {
+        registros.push({ key: childSnapshot.key, __iglesiaKey: keyIgreja, __somenteLeitura: false, ...valor });
+      }
     });
-    canceladoresDados.push(cancelar);
+    dadosPorIgreja.set(keyIgreja, registros);
+    reconstruirListaGlobal();
   });
-
-  if (!permitidas.length) reconstruirListaGlobal();
+  canceladoresDados.push(cancelar);
 }
 
-// Quando o usuário seleciona uma Escuela de Música autorizada, consulta as
-// demais igrejas para encontrar alunos dessa escola, mesmo que pertençam a
-// outra igreja (ex.: usuário SARANDI encontra aluno de LAFERRERE que estuda
-// em SARANDI).
-async function carregarAlunosPorEscuelasSelecionadas(escuelasSelecionadas) {
-  dadosCrossEscola.clear();
-
-  if (!Array.isArray(escuelasSelecionadas) || escuelasSelecionadas.length === 0) {
-    reconstruirListaGlobal();
-    return;
-  }
-
-  const escolasAcessiveis = new Set(igrejasPermitidas());
-  const escolasAlvo = escuelasSelecionadas.filter(escola => escolasAcessiveis.has(escola));
-
-  if (escolasAlvo.length === 0) {
-    reconstruirListaGlobal();
-    return;
-  }
-
-  const igrejasParaConsultar = [...igrejas].filter(igreja => !usuarioPodeIgreja(igreja));
-
-  await Promise.all(igrejasParaConsultar.map(async (igreja) => {
-    const keyIgreja = chaveIgreja(igreja);
-
-    try {
-      const snapshot = await get(refIgreja(igreja));
-      const registros = [];
-
-      snapshot.forEach(childSnapshot => {
+function registrarListenerEscuela(escuela) {
+  const keyEscuela = chaveEscuela(escuela);
+  const cancelar = onValue(refEscuela(escuela), snapshot => {
+    const registros = [];
+    snapshot.forEach(igrejaSnapshot => {
+      const igrejaKey = igrejaSnapshot.key;
+      igrejaSnapshot.forEach(childSnapshot => {
         const valor = childSnapshot.val();
-        if (!valor || valor.igreja !== igreja || valor.igrejaKey !== keyIgreja) return;
-
-        const escola = obterEscuelaMusica(valor);
-        if (escolasAlvo.includes(escola)) {
+        if (valor) {
           registros.push({
             key: childSnapshot.key,
-            __iglesiaKey: keyIgreja,
-            __acessoPorEscuela: true,
+            __iglesiaKey: igrejaKey,
+            __escuelaKey: keyEscuela,
+            __somenteLeitura: !usuarioPodeIgreja(valor.igreja),
             ...valor
           });
         }
       });
+    });
+    dadosPorEscuela.set(keyEscuela, registros);
+    reconstruirListaGlobal();
+  });
+  canceladoresDados.push(cancelar);
+}
 
-      if (registros.length) dadosCrossEscola.set(keyIgreja, registros);
-    } catch (error) {
-      console.warn(`No fue posible consultar ${igreja} para Escuela de Música:`, error);
+async function carregarDadosAutorizados() {
+  desligarListenersDados();
+  igrejasPermitidas().forEach(registrarListenerIgreja);
+  escolasPermitidas().forEach(registrarListenerEscuela);
+  if (!igrejasPermitidas().length && !escolasPermitidas().length) reconstruirListaGlobal();
+}
+
+async function sincronizarIndiceEscuela(dados, key, dadosAntigos = null) {
+  const novaEscuela = obterEscuelaMusica(dados);
+  const antigaEscuela = obterEscuelaMusica(dadosAntigos || {});
+  const igreja = dados?.igreja || dadosAntigos?.igreja || "";
+  const igrejaAntiga = dadosAntigos?.igreja || igreja;
+  const tarefas = [];
+  if (antigaEscuela && antigaEscuela !== "-" && (chaveEscuela(antigaEscuela) !== chaveEscuela(novaEscuela) || chaveIgreja(igrejaAntiga) !== chaveIgreja(igreja))) {
+    tarefas.push(remove(refIndiceEscuela(antigaEscuela, igrejaAntiga, key)));
+  }
+  if (novaEscuela && novaEscuela !== "-") {
+    tarefas.push(set(refIndiceEscuela(novaEscuela, igreja, key), dados));
+  }
+  if (tarefas.length) await Promise.all(tarefas);
+}
+
+async function removerDoIndiceEscuela(registro) {
+  const escola = obterEscuelaMusica(registro);
+  if (escola && escola !== "-") await remove(refIndiceEscuela(escola, registro.igreja, registro.key));
+}
+
+async function reconstruirIndiceEscolas() {
+  if (!ehAdministrador()) return;
+  try {
+    const todas = [...igrejas].sort();
+    const snapshotPorIgreja = await Promise.all(todas.map(async ig => ({ ig, snap: await get(refIgreja(ig)) })));
+    const tarefas = [];
+    for (const {ig, snap} of snapshotPorIgreja) {
+      snap.forEach(ch => {
+        const dados = ch.val();
+        const escola = obterEscuelaMusica(dados || {});
+        if (dados && escola && escola !== "-") tarefas.push(set(refIndiceEscuela(escola, ig, ch.key), dados));
+      });
     }
-  }));
-
-  reconstruirListaGlobal();
+    if (tarefas.length) await Promise.all(tarefas);
+    console.log(`Índice de Escuela de Música reconstruído: ${tarefas.length} registro(s).`);
+  } catch (e) { console.error("Erro ao reconstruir índice de escolas:", e); }
 }
 
 async function migrarDadosAntigos() {
@@ -1197,12 +1200,15 @@ onAuthStateChanged(auth, async (user) => {
 
     const ehAdminAtual = ehAdministrador();
     document.getElementById("btn-admin-usuarios").style.display = ehAdminAtual ? "inline-block" : "none";
-
-    // O painel de administração começa SEMPRE fechado ao entrar no sistema.
-    // Ele só é aberto quando o administrador clicar em "Administrar usuarios".
-    fecharPainelAdmin();
-
+    if (ehAdminAtual) {
+      document.getElementById("painel-admin-usuarios").style.display = "block";
+      renderizarIgrejasAdmin();
+      carregarListaPermissoes();
+    } else {
+      fecharPainelAdmin();
+    }
     carregarDadosAutorizados();
+    if (ehAdminAtual) reconstruirIndiceEscolas();
   } else {
     telaLogin.style.display = "block";
     conteudoSistema.style.display = "none";
@@ -1493,10 +1499,10 @@ containerTipos.addEventListener("change", () => {
   atualizar();
 });
 
-containerEscuelasMusica.addEventListener("change", async () => {
+containerEscuelasMusica.addEventListener("change", () => {
   const sel = pegarValoresSelecionados("chk-escuela-musica");
   textoFiltroEscuelasMusica.textContent = sel.length === 0 ? "Escuelas de Música" : (sel.length === 1 ? sel[0] : `${sel.length} Seleccionadas`);
-  await carregarAlunosPorEscuelasSelecionadas(sel);
+  atualizar();
 });
 filtroStatus.addEventListener("change", atualizar);
 filtroParentesco.addEventListener("change", atualizar);
@@ -1574,7 +1580,9 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     alert("Este músico ya se encuentra registrado en esta iglesia.");
     return;
   }
-  push(refIgreja(dados.igreja), dados);
+  const novoRef = push(refIgreja(dados.igreja));
+  const novoKey = novoRef.key;
+  set(novoRef, dados).then(() => sincronizarIndiceEscuela(dados, novoKey)).catch(e => console.error("Erro ao indexar Escuela de Música:", e));
   document.getElementById("formMusico").reset();
   igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
 carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
@@ -1825,7 +1833,6 @@ function atualizar(){
   const escuelasMusicaSelecionadas = pegarValoresSelecionados("chk-escuela-musica");
   const statusSelecionado = filtroStatus.value;
   const parentescoSelecionado = filtroParentesco.value;
-  const escolasAcessiveis = new Set(igrejasPermitidas());
 
   tabela.innerHTML = "";
   const contagemNomes = {};
@@ -1843,26 +1850,11 @@ function atualizar(){
     if (parentescoSelecionado === "hermano" && !m.hermano) return false;
     if (parentescoSelecionado === "hermana" && !m.hermana) return false;
 
-    const escolaDoRegistro = obterEscuelaMusica(m);
-    const filtroPorEscuelaAtivo = escuelasMusicaSelecionadas.length > 0;
-    const acessoPelaEscola =
-      filtroPorEscuelaAtivo &&
-      escuelasMusicaSelecionadas.includes(escolaDoRegistro) &&
-      escolasAcessiveis.has(escolaDoRegistro);
-
-    // REGRA PRINCIPAL DA ESCUELA DE MÚSICA:
-    // quando o usuário escolhe uma Escuela de Música (ex.: SARANDI),
-    // a igreja de cadastro do aluno deixa de ser um filtro. Assim,
-    // um aluno de LAFERRERE, CARLOS SPEGAZZINI etc. que estuda em SARANDI
-    // também aparece. A Escuela de Música passa a ser o filtro principal.
-    // Provincia e Iglesia são respeitadas normalmente somente quando
-    // nenhuma Escuela de Música estiver selecionada.
     return (
-      (usuarioPodeIgreja(m.igreja) || acessoPelaEscola) &&
-      (filtroPorEscuelaAtivo
-        ? escuelasMusicaSelecionadas.includes(escolaDoRegistro)
-        : (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
-          (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja))) &&
+      (escuelasMusicaSelecionadas.length > 0
+        ? escuelasMusicaSelecionadas.includes(obterEscuelaMusica(m))
+        : ((provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
+           (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)))) &&
       musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
@@ -1875,22 +1867,15 @@ function atualizar(){
     );
   })
   .sort((a, b) => {
-    // A coluna clicada passa a ser o critério PRINCIPAL.
-    // Ex.: ao clicar em "Nombre", todos os nomes ficam em ordem alfabética.
+    // A pesquisa mantém SEMPRE a ordem oficial dos instrumentos.
+    const ordemInstA = obterOrdemInstrumento(a);
+    const ordemInstB = obterOrdemInstrumento(b);
+    if (ordemInstA !== ordemInstB) return ordemInstA - ordemInstB;
+
+    // Dentro de cada instrumento, mantém a ordenação escolhida pelo cabeçalho.
     const valorA = obterValorOrdenacao(a, colunaOrdenada);
     const valorB = obterValorOrdenacao(b, colunaOrdenada);
-    const comparacao = valorA.localeCompare(
-      valorB,
-      "es",
-      { sensitivity: "base", numeric: true }
-    );
-
-    if (comparacao !== 0) {
-      return ordemCrescente ? comparacao : -comparacao;
-    }
-
-    // Em caso de empate, mantém a ordem oficial dos instrumentos.
-    return obterOrdemInstrumento(a) - obterOrdemInstrumento(b);
+    return ordemCrescente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
   });
 
   filtrados.forEach((m)=>{
@@ -2109,9 +2094,9 @@ function atualizar(){
           <button class="btn-excluir">🗑️</button>
         </td>
       `;
-      const podeEditarRegistro = acessoAtual?.podeEditar && usuarioPodeIgreja(m.igreja);
-      tr.querySelector(".btn-editar").style.display = podeEditarRegistro ? "inline-block" : "none";
-      tr.querySelector(".btn-excluir").style.display = podeEditarRegistro ? "inline-block" : "none";
+      const podeAlterarRegistro = !!acessoAtual?.podeEditar && usuarioPodeIgreja(m.igreja) && !m.__somenteLeitura;
+      tr.querySelector(".btn-editar").style.display = podeAlterarRegistro ? "inline-block" : "none";
+      tr.querySelector(".btn-excluir").style.display = podeAlterarRegistro ? "inline-block" : "none";
       tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
       tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
     }
@@ -2182,8 +2167,10 @@ function salvarInline(key, tr) {
   const refNovo = ref(database, `musicosPorIglesia/${chaveIgreja(igrejaNova)}/${key}`);
   const refAntigo = ref(database, `musicosPorIglesia/${chaveIgreja(igrejaAnterior)}/${key}`);
 
-  (mesmaIgreja ? set(refNovo, dados) : set(refNovo, dados).then(() => remove(refAntigo))).then(() => { 
-    editKey = null; 
+  (mesmaIgreja ? set(refNovo, dados) : set(refNovo, dados).then(() => remove(refAntigo))).then(async () => {
+    await sincronizarIndiceEscuela(dados, key, registroAtual);
+    if (!mesmaIgreja) await removerDoIndiceEscuela({ ...registroAtual, key });
+    editKey = null;
     carregarDadosAutorizados();
   }).catch((e) => { console.error(e); alert("No fue posible guardar el registro."); });
 }
@@ -2192,7 +2179,9 @@ function excluir(key){
   const registro = lista.find(m => m.key === key);
   if (!registro || !usuarioPodeIgreja(registro.igreja)) { alert("No tiene permiso para eliminar este registro."); return; }
   if (!acessoAtual?.podeEditar) { alert("Su usuario no tiene permiso para eliminar registros."); return; }
-  if(confirm("¿Realmente desea eliminar a este músico?")) { remove(refRegistro(registro)); }
+  if(confirm("¿Realmente desea eliminar a este músico?")) {
+    remove(refRegistro(registro)).then(() => removerDoIndiceEscuela(registro)).catch(e => { console.error(e); alert("No fue posible eliminar el registro."); });
+  }
 }
 
 /* --- FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
@@ -2314,7 +2303,9 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       
       if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
       if (!usuarioPodeIgreja(dados.igreja)) continue;
-      push(refIgreja(dados.igreja), dados);
+      const novoRefImport = push(refIgreja(dados.igreja));
+      const novoKeyImport = novoRefImport.key;
+      set(novoRefImport, dados).then(() => sincronizarIndiceEscuela(dados, novoKeyImport)).catch(e => console.error("Erro ao indexar importação:", e));
     }
     alert(`Importación finalizada.`); event.target.value = '';
   };
@@ -2352,34 +2343,26 @@ document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
 });
 
 function ordenarPor(coluna) {
-  if (colunaOrdenada === coluna) {
-    ordemCrescente = !ordemCrescente;
-  } else {
-    colunaOrdenada = coluna;
-    ordemCrescente = true;
-  }
+  if (colunaOrdenada === coluna) { ordemCrescente = !ordemCrescente; } else { colunaOrdenada = coluna; ordemCrescente = true; }
   atualizar();
 }
-
 const cabecalhos = document.querySelectorAll("table th");
-const colunasOrdenaveis = [
-  "provincia",
-  "igreja",
-  "nome",
-  "hermana",
-  "hermano",
-  "instrumento",
-  "tipo",
-  "escuelaMusica"
-];
+cabecalhos[0].addEventListener("click", () => ordenarPor("provincia"));
+cabecalhos[1].addEventListener("click", () => ordenarPor("igreja"));
+cabecalhos[2].addEventListener("click", () => ordenarPor("nome"));
+cabecalhos[3].addEventListener("click", () => ordenarPor("hermano"));
+cabecalhos[4].addEventListener("click", () => ordenarPor("hermana"));
+cabecalhos[5].addEventListener("click", () => ordenarPor("instrumento"));
+cabecalhos[6].addEventListener("click", () => ordenarPor("tipo"));
+cabecalhos[7].addEventListener("click", () => ordenarPor("escuelaMusica"));
 
 cabecalhos.forEach((th, index) => {
-  const coluna = colunasOrdenaveis[index];
-  if (!coluna) return;
-
-  th.style.cursor = "pointer";
-  th.title = `Ordenar por ${th.textContent.trim()}`;
-  th.addEventListener("click", () => ordenarPor(coluna));
+  if(index < 6) {
+    th.style.cursor = "pointer";
+    th.title = index === 3
+      ? "Orden fijo de instrumentos; haga clic para ordenar dentro de cada instrumento"
+      : "Ordenar dentro de la ordem fixa dos instrumentos";
+  }
 });
 busca.addEventListener("input", atualizar);
 
@@ -2402,7 +2385,6 @@ btnLimparBusca.addEventListener("click", () => {
   
   // Restablecer el dropdown de iglesias solo a las iglesias autorizadas del usuario.
   reconstruirFiltroIgrejas(igrejasPermitidas());
-  dadosCrossEscola.clear();
 
   atualizar();      
 });
