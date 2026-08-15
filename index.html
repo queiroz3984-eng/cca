@@ -832,16 +832,29 @@ async function criarUsuarioPeloAdmin() {
 }
 
 
+function normalizarIgrejasAcesso(valor) {
+  if (valor === "TODAS") return "TODAS";
+  if (!valor) return [];
+  if (Array.isArray(valor)) return valor.map(String);
+  if (typeof valor === "object") {
+    return Object.entries(valor).filter(([k,v]) => v === true).map(([k]) => k);
+  }
+  return [];
+}
+
 function usuarioPodeIgreja(igreja) {
   if (!acessoAtual || !igreja) return false;
   if (acessoAtual.igrejas === "TODAS") return true;
-  return Array.isArray(acessoAtual.igrejas) && acessoAtual.igrejas.includes(igreja);
+  const permitidas = igrejasPermitidas();
+  return permitidas.some(i => chaveIgreja(i) === chaveIgreja(igreja));
 }
 
 function igrejasPermitidas() {
   if (!acessoAtual) return [];
   if (acessoAtual.igrejas === "TODAS") return [...igrejas].sort();
-  return [...new Set((acessoAtual.igrejas || []).filter(i => igrejas.includes(i)))].sort();
+  const raw = normalizarIgrejasAcesso(acessoAtual.igrejas);
+  const chaves = new Set(raw.map(i => chaveIgreja(i)));
+  return [...new Set(igrejas.filter(i => chaves.has(chaveIgreja(i))))].sort();
 }
 
 function provinciasPermitidas() {
@@ -897,6 +910,18 @@ function aplicarAcessoNaInterface() {
   });
 
   reconstruirFiltroIgrejas(igPermitidas);
+
+  // Usuário restrito: a igreja autorizada fica selecionada automaticamente
+  // e a Escola de Música correspondente também é selecionada.
+  if (acessoAtual?.igrejas !== "TODAS" && igPermitidas.length > 0) {
+    document.querySelectorAll(".chk-igreja").forEach(chk => { chk.checked = true; });
+    document.querySelectorAll(".chk-escuela-musica").forEach(chk => {
+      chk.checked = igPermitidas.some(ig => chaveIgreja(ig) === chaveIgreja(chk.value));
+    });
+    textoFiltroIgrejas.textContent = igPermitidas.length === 1 ? igPermitidas[0] : `${igPermitidas.length} Seleccionadas`;
+    textoFiltroEscuelasMusica.textContent = igPermitidas.length === 1 ? igPermitidas[0] : `${igPermitidas.length} Seleccionadas`;
+  }
+
   gerenciarBotaoAlternar("btn-toggle-provincias", "chk-provincia", "Provincias", "Provincias", textoFiltroProvincias);
   monitorarMudancasCheckboxes("btn-toggle-provincias", "chk-provincia", "Provincias");
 
@@ -1044,8 +1069,10 @@ async function carregarDadosAutorizados() {
       const registros = [];
       snapshot.forEach(childSnapshot => {
         const valor = childSnapshot.val();
-        if (valor && valor.igreja === igreja && valor.igrejaKey === keyIgreja && usuarioPodeIgreja(valor.igreja)) {
-          registros.push({ key: childSnapshot.key, __iglesiaKey: keyIgreja, ...valor });
+        if (valor && valor.igreja && chaveIgreja(valor.igreja) === keyIgreja && usuarioPodeIgreja(valor.igreja)) {
+          // Alguns registros antigos não possuem igrejaKey. A igrejaKey é derivada
+          // do nome da igreja para não impedir o carregamento desses registros.
+          registros.push({ key: childSnapshot.key, igrejaKey: valor.igrejaKey || keyIgreja, __iglesiaKey: keyIgreja, ...valor });
         }
       });
       dadosPorIgreja.set(keyIgreja, registros);
