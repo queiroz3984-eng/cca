@@ -281,6 +281,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
         
         <button type="button" class="btn-admin" id="btn-admin-usuarios" style="display:none;">⚙️ Administrar usuarios</button>
         <button type="button" class="btn-importar" id="btn-migrar-dados" style="display:none;">🔄 Migrar dados antigos</button>
+        <button type="button" class="btn-importar" id="btn-reindexar-escolas" style="display:none;">🎵 Atualizar Escolas de Música</button>
       </div>
     </div>
   </div>
@@ -544,7 +545,7 @@ async function carregarAcessoUsuario(user) {
 
     // Permissões editadas pelo administrador para usuários antigos que
     // estavam cadastrados na lista USUARIOS_ACESSO antes do painel Firebase.
-    const chaveEmail = encodeURIComponent(email);
+    const chaveEmail = chaveEmailFirebase(email);
     const snapEmail = await get(ref(database, `permissoesPorEmail/${chaveEmail}`));
     if (snapEmail.exists()) {
       const dados = snapEmail.val() || {};
@@ -740,7 +741,7 @@ async function carregarListaPermissoes() {
       if (!confirm(`Excluir o acesso de ${email}?\n\nA conta continuará existiendo en Firebase Authentication, pero quedará sin permisos para entrar al sistema.`)) return;
       try {
         if (uid.startsWith("legacy:") || uid.startsWith("email:")) {
-          await remove(ref(database, `permissoesPorEmail/${encodeURIComponent(email)}`));
+          await remove(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`));
         } else {
           await remove(ref(database, `permissoes/${uid}`));
         }
@@ -782,7 +783,7 @@ async function editarUsuarioPeloAdmin(uid) {
     let anterior = {};
     let caminho = null;
     if (uid.startsWith("legacy:") || uid.startsWith("email:")) {
-      const chave = encodeURIComponent(email);
+      const chave = chaveEmailFirebase(email);
       const snapEmail = await get(ref(database, `permissoesPorEmail/${chave}`));
       if (snapEmail.exists()) anterior = snapEmail.val() || {};
       else {
@@ -1067,6 +1068,12 @@ function chaveIgreja(igreja) {
     .replace(/^_+|_+$/g, "");
 }
 
+function chaveEmailFirebase(email) {
+  // O Realtime Database não aceita ponto em chaves. Mantemos uma chave
+  // determinística e compatível com as Rules: ponto -> %2E e @ -> %40.
+  return String(email || "").trim().toLowerCase().replace(/\./g, "%2E").replace(/@/g, "%40");
+}
+
 function refIgreja(igreja) {
   return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}`);
 }
@@ -1076,11 +1083,43 @@ function refRegistro(registro) {
   return ref(database, `musicosPorIglesia/${chaveIgreja(igreja)}/${registro.key}`);
 }
 
+function refIndiceEscuela(registro) {
+  const escuela = obterEscuelaMusica(registro);
+  if (!escuela || escuela === "-") return null;
+  return ref(database, `musicosPorIglesia/${chaveIgreja(escuela)}/${registro.key}`);
+}
+
+function registroParaIndiceEscuela(registro) {
+  return { ...registro, __indiceEscuela: true };
+}
+
+async function salvarRegistroComIndice(registro) {
+  const dados = { ...registro };
+  delete dados.key;
+  delete dados.__iglesiaKey;
+  delete dados.__indiceEscuela;
+  await set(refRegistro({ ...dados, key: registro.key }), dados);
+  const indice = refIndiceEscuela(dados);
+  if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
+    await set(indice, registroParaIndiceEscuela({ ...dados, key: registro.key }));
+  }
+}
+
+async function excluirRegistroComIndice(registro) {
+  const refs = [refRegistro(registro)];
+  const indice = refIndiceEscuela(registro);
+  if (indice && chaveIgreja(registro.igreja) !== chaveIgreja(obterEscuelaMusica(registro))) refs.push(indice);
+  await Promise.all(refs.map(r => remove(r)));
+}
+
 function reconstruirListaGlobal() {
-  lista = [];
+  const porKey = new Map();
   dadosPorIgreja.forEach(registros => {
-    lista.push(...registros);
+    registros.forEach(registro => {
+      if (!porKey.has(registro.key)) porKey.set(registro.key, registro);
+    });
   });
+  lista = [...porKey.values()];
   atualizar();
 }
 
@@ -1093,24 +1132,69 @@ function desligarListenersDados() {
 async function carregarDadosAutorizados() {
   desligarListenersDados();
   const permitidas = igrejasPermitidas();
-  permitidas.forEach(igreja => {
+  // Usuários restritos leem somente suas igrejas. Os alunos de Escola de Música
+  // de uma igreja ficam indexados também no nó dessa Escola de Música.
+  // Administradores continuam lendo todos os nós.
+  const igrejasParaLer = acessoAtual?.igrejas === "TODAS" ? igrejas : permitidas;
+  const vistos = new Map();
+
+  igrejasParaLer.forEach(igreja => {
     const keyIgreja = chaveIgreja(igreja);
     const cancelar = onValue(refIgreja(igreja), snapshot => {
       const registros = [];
       snapshot.forEach(childSnapshot => {
         const valor = childSnapshot.val();
-        if (valor && valor.igreja && chaveIgreja(valor.igreja) === keyIgreja && usuarioPodeIgreja(valor.igreja)) {
-          // Alguns registros antigos não possuem igrejaKey. A igrejaKey é derivada
-          // do nome da igreja para não impedir o carregamento desses registros.
-          registros.push({ key: childSnapshot.key, igrejaKey: valor.igrejaKey || keyIgreja, __iglesiaKey: keyIgreja, ...valor });
-        }
+        if (!valor) return;
+
+        // Índices da Escola de Música são cópias para permitir leitura segura
+        // sem liberar a igreja de origem inteira.
+        const autorizado = usuarioPodeIgreja(valor.igreja) ||
+          usuarioPodeIgreja(obterEscuelaMusica(valor));
+        if (!autorizado) return;
+
+        // Administrador não deve ver a cópia de índice como outro músico.
+        if (acessoAtual?.igrejas === "TODAS" && valor.__indiceEscuela === true) return;
+
+        registros.push({
+          key: childSnapshot.key,
+          igrejaKey: valor.igrejaKey || chaveIgreja(valor.igreja) || keyIgreja,
+          __iglesiaKey: keyIgreja,
+          ...valor
+        });
       });
       dadosPorIgreja.set(keyIgreja, registros);
       reconstruirListaGlobal();
     });
     canceladoresDados.push(cancelar);
   });
+
   if (!permitidas.length) reconstruirListaGlobal();
+}
+async function reindexarEscolasDeMusica() {
+  if (!ehAdministrador()) return;
+  if (!confirm("Atualizar os índices das Escolas de Música? Os registros continuarão nas igrejas de origem.")) return;
+  try {
+    const tarefas = [];
+    for (const igreja of igrejas) {
+      const snap = await get(refIgreja(igreja));
+      snap.forEach(child => {
+        const dados = child.val();
+        if (!dados || !dados.nome) return;
+        const escola = obterEscuelaMusica(dados);
+        if (!escola || escola === "-" || chaveIgreja(escola) === chaveIgreja(dados.igreja)) return;
+        tarefas.push(set(
+          ref(database, `musicosPorIglesia/${chaveIgreja(escola)}/${child.key}`),
+          registroParaIndiceEscuela({ ...dados, key: child.key })
+        ));
+      });
+    }
+    await Promise.all(tarefas);
+    alert(`Índices de Escola de Música atualizados: ${tarefas.length} registro(s).`);
+    await carregarDadosAutorizados();
+  } catch (e) {
+    console.error(e);
+    alert(`Não foi possível atualizar os índices das Escolas de Música.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}`);
+  }
 }
 
 async function migrarDadosAntigos() {
@@ -1136,7 +1220,14 @@ async function migrarDadosAntigos() {
       }
       dados.igrejaKey = chaveIgreja(dados.igreja);
       const destino = ref(database, `musicosPorIglesia/${chaveIgreja(dados.igreja)}/${childSnapshot.key}`);
-      operaciones.push(set(destino, dados).then(() => remove(childSnapshot.ref)));
+      const indice = refIndiceEscuela({ ...dados, key: childSnapshot.key });
+      const salvar = set(destino, dados).then(async () => {
+        if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
+          await set(indice, registroParaIndiceEscuela({ ...dados, key: childSnapshot.key }));
+        }
+        await remove(childSnapshot.ref);
+      });
+      operaciones.push(salvar);
       total++;
     });
 
@@ -1174,6 +1265,7 @@ onAuthStateChanged(auth, async (user) => {
     const ehAdminAtual = ehAdministrador();
     document.getElementById("btn-admin-usuarios").style.display = ehAdminAtual ? "inline-block" : "none";
     document.getElementById("btn-migrar-dados").style.display = ehAdminAtual ? "inline-block" : "none";
+    document.getElementById("btn-reindexar-escolas").style.display = ehAdminAtual ? "inline-block" : "none";
 
     // O painel de administração começa SEMPRE fechado ao entrar no sistema.
     // Ele só é aberto quando o administrador clicar em "Administrar usuarios".
@@ -1189,6 +1281,7 @@ onAuthStateChanged(auth, async (user) => {
     acessoAtual = null;
     document.getElementById("btn-admin-usuarios").style.display = "none";
     document.getElementById("btn-migrar-dados").style.display = "none";
+    document.getElementById("btn-reindexar-escolas").style.display = "none";
     fecharPainelAdmin();
   }
 });
@@ -1204,6 +1297,7 @@ document.addEventListener("click", (e) => {
 
 document.getElementById("btn-admin-usuarios").addEventListener("click", abrirPainelAdmin);
 document.getElementById("btn-migrar-dados").addEventListener("click", migrarDadosAntigos);
+document.getElementById("btn-reindexar-escolas").addEventListener("click", reindexarEscolasDeMusica);
 document.getElementById("btn-fechar-admin").addEventListener("click", fecharPainelAdmin);
 document.getElementById("btn-criar-usuario").addEventListener("click", criarUsuarioPeloAdmin);
 document.getElementById("admin-acesso").addEventListener("change", (e) => {
@@ -1571,7 +1665,12 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     return;
   }
   push(refIgreja(dados.igreja), dados)
-    .then(() => {
+    .then(async (resultado) => {
+      const registroSalvo = { ...dados, key: resultado.key };
+      const indice = refIndiceEscuela(registroSalvo);
+      if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
+        await set(indice, registroParaIndiceEscuela(registroSalvo));
+      }
       document.getElementById("formMusico").reset();
       igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
       carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
@@ -2095,8 +2194,9 @@ function atualizar(){
           <button class="btn-excluir">🗑️</button>
         </td>
       `;
-      tr.querySelector(".btn-editar").style.display = acessoAtual?.podeEditar ? "inline-block" : "none";
-      tr.querySelector(".btn-excluir").style.display = acessoAtual?.podeEditar ? "inline-block" : "none";
+      const podeAlterarRegistro = acessoAtual?.podeEditar && usuarioPodeIgreja(m.igreja);
+      tr.querySelector(".btn-editar").style.display = podeAlterarRegistro ? "inline-block" : "none";
+      tr.querySelector(".btn-excluir").style.display = podeAlterarRegistro ? "inline-block" : "none";
       tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
       tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
     }
@@ -2167,17 +2267,37 @@ function salvarInline(key, tr) {
   const refNovo = ref(database, `musicosPorIglesia/${chaveIgreja(igrejaNova)}/${key}`);
   const refAntigo = ref(database, `musicosPorIglesia/${chaveIgreja(igrejaAnterior)}/${key}`);
 
-  (mesmaIgreja ? set(refNovo, dados) : set(refNovo, dados).then(() => remove(refAntigo))).then(() => { 
+  (async () => {
+    await set(refNovo, dados);
+    if (!mesmaIgreja) await remove(refAntigo);
+
+    // Atualiza/remove a cópia usada pelo filtro da Escola de Música.
+    const escolaNova = obterEscuelaMusica(dados);
+    const escolaAnterior = obterEscuelaMusica(registroAtual || {});
+    if (escolaAnterior && escolaAnterior !== "-" && chaveIgreja(escolaAnterior) !== chaveIgreja(igrejaAnterior)) {
+      await remove(ref(database, `musicosPorIglesia/${chaveIgreja(escolaAnterior)}/${key}`));
+    }
+    if (escolaNova && escolaNova !== "-" && chaveIgreja(escolaNova) !== chaveIgreja(igrejaNova)) {
+      await set(ref(database, `musicosPorIglesia/${chaveIgreja(escolaNova)}/${key}`), registroParaIndiceEscuela({ ...dados, key }));
+    }
+  })().then(() => { 
     editKey = null; 
     carregarDadosAutorizados();
-  }).catch((e) => { console.error(e); alert("No fue posible guardar el registro."); });
+  }).catch((e) => { console.error(e); alert(`No fue posible guardar el registro.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}`); });
 }
 
 function excluir(key){
   const registro = lista.find(m => m.key === key);
   if (!registro || !usuarioPodeIgreja(registro.igreja)) { alert("No tiene permiso para eliminar este registro."); return; }
   if (!acessoAtual?.podeEditar) { alert("Su usuario no tiene permiso para eliminar registros."); return; }
-  if(confirm("¿Realmente desea eliminar a este músico?")) { remove(refRegistro(registro)); }
+  if(confirm("¿Realmente desea eliminar a este músico?")) {
+    excluirRegistroComIndice(registro)
+      .then(() => carregarDadosAutorizados())
+      .catch(e => {
+        console.error(e);
+        alert(`No fue posible eliminar el registro.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}`);
+      });
+  }
 }
 
 /* --- FUNÇÃO DE EXPORTAÇÃO PARA XLSX --- */
@@ -2218,7 +2338,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
   const archivo = event.target.files[0]; if (!archivo) return;
   const lector = new FileReader();
   
-  lector.onload = function(e) {
+  lector.onload = async function(e) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
     
@@ -2299,7 +2419,12 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       
       if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
       if (!usuarioPodeIgreja(dados.igreja)) continue;
-      push(refIgreja(dados.igreja), dados);
+      const resultado = await push(refIgreja(dados.igreja), dados);
+      const registroSalvo = { ...dados, key: resultado.key };
+      const indice = refIndiceEscuela(registroSalvo);
+      if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
+        await set(indice, registroParaIndiceEscuela(registroSalvo));
+      }
     }
     alert(`Importación finalizada.`); event.target.value = '';
   };
