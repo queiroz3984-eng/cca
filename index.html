@@ -531,20 +531,11 @@ async function carregarAcessoUsuario(user) {
   if (email === EMAIL_ADMINISTRADOR) {
     return { nome: "Administrador", igrejas: "TODAS", podeEditar: true, podeImportar: true, podeExcluirTudo: true, administrador: true };
   }
-  try {
-    // Primeiro procura a permissão vinculada ao UID atual.
-    const snap = await get(ref(database, `permissoes/${user.uid}`));
-    if (snap.exists()) {
-      const dados = snap.val() || {};
-      if (dados.ativo === false) return null;
-      let igrejasAcesso = [];
-      if (dados.todas === true) igrejasAcesso = "TODAS";
-      else if (dados.igrejas && typeof dados.igrejas === "object") igrejasAcesso = Object.keys(dados.igrejas).filter(k => dados.igrejas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
-      return { nome: dados.nome || email, igrejas: igrejasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
-    }
 
-    // Permissões editadas pelo administrador para usuários antigos que
-    // estavam cadastrados na lista USUARIOS_ACESSO antes do painel Firebase.
+  try {
+    // A permissão por e-mail é a fonte principal. Isso permite que o
+    // administrador altere usuários antigos mesmo quando eles não possuem
+    // /permissoes/{uid} criado pelo painel.
     const chaveEmail = chaveEmailFirebase(email);
     const snapEmail = await get(ref(database, `permissoesPorEmail/${chaveEmail}`));
     if (snapEmail.exists()) {
@@ -552,10 +543,45 @@ async function carregarAcessoUsuario(user) {
       if (dados.ativo === false) return null;
       let igrejasAcesso = [];
       if (dados.todas === true) igrejasAcesso = "TODAS";
-      else if (dados.igrejas && typeof dados.igrejas === "object") igrejasAcesso = Object.keys(dados.igrejas).filter(k => dados.igrejas[k] === true).map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
-      return { nome: dados.nome || email, igrejas: igrejasAcesso, podeEditar: dados.podeEditar !== false, podeImportar: dados.podeImportar !== false, podeExcluirTudo: dados.podeExcluirTudo !== false, administrador: false };
+      else if (dados.igrejas && typeof dados.igrejas === "object") {
+        igrejasAcesso = Object.keys(dados.igrejas)
+          .filter(k => dados.igrejas[k] === true)
+          .map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
+      }
+      return {
+        nome: dados.nome || email,
+        igrejas: igrejasAcesso,
+        podeEditar: dados.podeEditar !== false,
+        podeImportar: dados.podeImportar !== false,
+        podeExcluirTudo: dados.podeExcluirTudo !== false,
+        administrador: false
+      };
     }
-  } catch (e) { console.error("Erro ao carregar permissão:", e); }
+
+    // Compatibilidade com dados antigos gravados por UID.
+    const snap = await get(ref(database, `permissoes/${user.uid}`));
+    if (snap.exists()) {
+      const dados = snap.val() || {};
+      if (dados.ativo === false) return null;
+      let igrejasAcesso = [];
+      if (dados.todas === true) igrejasAcesso = "TODAS";
+      else if (dados.igrejas && typeof dados.igrejas === "object") {
+        igrejasAcesso = Object.keys(dados.igrejas)
+          .filter(k => dados.igrejas[k] === true)
+          .map(k => igrejas.find(i => chaveIgreja(i) === k) || k);
+      }
+      return {
+        nome: dados.nome || email,
+        igrejas: igrejasAcesso,
+        podeEditar: dados.podeEditar !== false,
+        podeImportar: dados.podeImportar !== false,
+        podeExcluirTudo: dados.podeExcluirTudo !== false,
+        administrador: false
+      };
+    }
+  } catch (e) {
+    console.error("Erro ao carregar permissão:", e);
+  }
   return USUARIOS_ACESSO[email] || null;
 }
 
@@ -605,19 +631,9 @@ async function carregarListaPermissoes() {
   const box = document.getElementById("admin-lista-usuarios");
   if (!box || !ehAdministrador()) return;
   try {
-    let dadosFirebase = {};
-    let erroPermissoes = null;
-    try {
-      const snap = await get(ref(database, "permissoes"));
-      dadosFirebase = snap.exists() ? (snap.val() || {}) : {};
-    } catch (e) {
-      erroPermissoes = e;
-      console.error("Não foi possível ler /permissoes:", e);
-    }
     const porEmail = new Map();
 
-    // 1) Mostra TODOS os usuários que já estavam cadastrados no código
-    //    (USUARIOS_ACESSO), mesmo que ainda não tenham um registro em /permissoes.
+    // Cadastro local: usado apenas como fallback para usuários antigos.
     Object.entries(USUARIOS_ACESSO).forEach(([email, u]) => {
       const e = email.toLowerCase();
       const igrejasObj = {};
@@ -636,24 +652,36 @@ async function carregarListaPermissoes() {
       });
     });
 
-    // 2) Usuários já gravados no Firebase substituem a versão antiga pelo UID real.
-    Object.entries(dadosFirebase).forEach(([uid, u]) => {
-      if (!u || !u.email) return;
-      porEmail.set(String(u.email).toLowerCase(), { uid, ...u, legacy: false });
-    });
-
-    // 3) Também inclui usuários antigos que tenham sido editados pelo painel
-    //    usando o cadastro por e-mail.
+    // Fonte principal: permissões por e-mail.
     let dadosEmail = {};
     try {
       const snapEmail = await get(ref(database, "permissoesPorEmail"));
       if (snapEmail.exists()) dadosEmail = snapEmail.val() || {};
-    } catch (e) { console.warn("Não foi possível ler permissoesPorEmail", e); }
+    } catch (e) {
+      console.error("Não foi possível ler /permissoesPorEmail:", e);
+      throw new Error(`Não foi possível ler as permissões por e-mail: ${e?.code || e?.message || e}`);
+    }
+
     Object.entries(dadosEmail).forEach(([chave, u]) => {
       if (!u || !u.email) return;
       const e = String(u.email).toLowerCase();
-      if (!porEmail.has(e) || porEmail.get(e).legacy) {
-        porEmail.set(e, { uid: `email:${chave}`, ...u, legacy: true, origemEmail: true });
+      porEmail.set(e, { uid: `email:${chave}`, ...u, legacy: true, origemEmail: true });
+    });
+
+    // Compatibilidade: registros antigos por UID substituem apenas se ainda
+    // não houver uma versão por e-mail.
+    let dadosFirebase = {};
+    try {
+      const snap = await get(ref(database, "permissoes"));
+      if (snap.exists()) dadosFirebase = snap.val() || {};
+    } catch (e) {
+      console.warn("Não foi possível ler /permissoes:", e);
+    }
+    Object.entries(dadosFirebase).forEach(([uid, u]) => {
+      if (!u || !u.email) return;
+      const e = String(u.email).toLowerCase();
+      if (!porEmail.has(e) || porEmail.get(e).legacy !== true || porEmail.get(e).origemEmail !== true) {
+        porEmail.set(e, { uid, ...u, legacy: false });
       }
     });
 
@@ -686,25 +714,28 @@ async function carregarListaPermissoes() {
       </div>`;
     }).join("");
 
-    const avisoRules = erroPermissoes
-      ? `<div style="color:#b91c1c;background:#fff1f2;border:1px solid #fecdd3;padding:8px;margin-bottom:10px;border-radius:5px;font-size:12px;">Não foi possível ler /permissoes no Firebase. Os usuários antigos abaixo foram carregados do cadastro local, mas é necessário corrigir as Rules para editar/sincronizar os usuários. Erro: ${erroPermissoes?.code || erroPermissoes?.message || "permissão negada"}</div>`
-      : "";
-    box.innerHTML = avisoRules + (linhas || "<div style='color:#777'>Nenhum usuário cadastrado.</div>");
+    box.innerHTML = linhas || "<div style='color:#777'>Nenhum usuário cadastrado.</div>";
 
     box.querySelectorAll(".btn-admin-editar").forEach(btn => btn.addEventListener("click", async () => {
       const uid = btn.dataset.uid;
+      const linha = btn.closest(".admin-usuario-linha");
+      const email = linha?.querySelector(".admin-usuario-dados span[style*='color:#555']")?.textContent?.replace("E-mail: ", "").trim().toLowerCase();
+      if (!email) return;
+
+      // Sempre carrega a fonte canônica por e-mail.
       let u = null;
-      if (uid.startsWith("legacy:") || uid.startsWith("email:")) {
-        const linha = btn.closest(".admin-usuario-linha");
-        const email = linha?.querySelector(".admin-usuario-dados span[style*='color:#555']")?.textContent?.replace("E-mail: ", "").trim().toLowerCase();
-        u = email ? (porEmail.get(email) || USUARIOS_ACESSO[email]) : null;
-      } else {
-        const snapUser = await get(ref(database, `permissoes/${uid}`));
-        if (snapUser.exists()) u = snapUser.val() || {};
+      try {
+        const snap = await get(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`));
+        if (snap.exists()) u = snap.val() || {};
+      } catch (e) {
+        alert(`Não foi possível carregar as permissões de ${email}.\\n${e?.message || ""}`);
+        return;
       }
+      if (!u) u = porEmail.get(email) || USUARIOS_ACESSO[email];
       if (!u) return;
+
       document.getElementById("admin-nome").value = u.nome || "";
-      document.getElementById("admin-email").value = u.email || "";
+      document.getElementById("admin-email").value = u.email || email;
       document.getElementById("admin-email").disabled = true;
       document.getElementById("admin-senha").value = "";
       document.getElementById("admin-acesso").value = u.todas ? "TODAS" : "IGREJAS";
@@ -738,17 +769,18 @@ async function carregarListaPermissoes() {
       const linha = btn.closest(".admin-usuario-linha");
       const email = linha?.querySelector(".admin-usuario-dados span[style*='color:#555']")?.textContent?.replace("E-mail: ", "").trim().toLowerCase() || "este usuário";
       if (email === EMAIL_ADMINISTRADOR) { alert("El administrador principal no puede ser excluido por este panel."); return; }
-      if (!confirm(`Excluir o acesso de ${email}?\n\nA conta continuará existiendo en Firebase Authentication, pero quedará sin permisos para entrar al sistema.`)) return;
+      if (!confirm(`Excluir o acesso de ${email}?\\n\\nA conta continuará existiendo en Firebase Authentication, pero quedará sin permisos para entrar al sistema.`)) return;
       try {
-        if (uid.startsWith("legacy:") || uid.startsWith("email:")) {
-          await remove(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`));
-        } else {
+        await remove(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`));
+        if (uid && !uid.startsWith("legacy:") && !uid.startsWith("email:")) {
           await remove(ref(database, `permissoes/${uid}`));
         }
         await carregarListaPermissoes();
-      } catch (e) { console.error(e); alert("Não foi possível excluir o acesso. Verifique as Rules do Firebase."); }
+      } catch (e) {
+        console.error(e);
+        alert(`Não foi possível excluir o acesso.\\n${e?.code || ""}\\n${e?.message || ""}`);
+      }
     }));
-
   } catch (e) {
     box.innerHTML = `<div style='color:#b91c1c'>Não foi possível carregar os usuários. Erro do Firebase: ${e?.code || e?.message || "permissão negada"}. Verifique as Rules do Realtime Database.</div>`;
     console.error(e);
@@ -778,54 +810,68 @@ async function editarUsuarioPeloAdmin(uid) {
   const email = document.getElementById("admin-email").value.trim().toLowerCase();
   const modo = document.getElementById("admin-acesso").value;
   const selecionadas = [...document.querySelectorAll(".admin-igreja:checked")].map(c => c.value);
+  if (!email) { alert("Informe o e-mail."); return; }
   if (modo === "IGREJAS" && selecionadas.length === 0) { alert("Selecione pelo menos uma igreja."); return; }
+
   try {
+    const chave = chaveEmailFirebase(email);
+
+    // Lê a permissão canônica por e-mail. Se ainda não existir, cria a partir
+    // do cadastro antigo da aplicação.
     let anterior = {};
-    let caminho = null;
-    if (uid.startsWith("legacy:") || uid.startsWith("email:")) {
-      const chave = chaveEmailFirebase(email);
-      const snapEmail = await get(ref(database, `permissoesPorEmail/${chave}`));
-      if (snapEmail.exists()) anterior = snapEmail.val() || {};
-      else {
-        const original = USUARIOS_ACESSO[email] || {};
-        anterior = { email, nome: original.nome || email, podeEditar: original.podeEditar !== false, podeImportar: original.podeImportar !== false, podeExcluirTudo: original.podeExcluirTudo !== false };
-        if (original.igrejas === "TODAS") anterior.todas = true;
-        else { anterior.igrejas = {}; (original.igrejas || []).forEach(ig => anterior.igrejas[chaveIgreja(ig)] = true); }
-      }
-      caminho = `permissoesPorEmail/${chave}`;
+    const snapEmail = await get(ref(database, `permissoesPorEmail/${chave}`));
+    if (snapEmail.exists()) {
+      anterior = snapEmail.val() || {};
     } else {
-      const snap = await get(ref(database, `permissoes/${uid}`));
-      if (!snap.exists()) { alert("Usuário não encontrado."); return; }
-      anterior = snap.val() || {};
-      caminho = `permissoes/${uid}`;
+      const original = USUARIOS_ACESSO[email] || {};
+      anterior = {
+        email,
+        nome: original.nome || email,
+        podeEditar: original.podeEditar !== false,
+        podeImportar: original.podeImportar !== false,
+        podeExcluirTudo: original.podeExcluirTudo !== false,
+        ativo: true
+      };
+      if (original.igrejas === "TODAS") anterior.todas = true;
+      else {
+        anterior.igrejas = {};
+        (original.igrejas || []).forEach(ig => anterior.igrejas[chaveIgreja(ig)] = true);
+      }
     }
-    const permissoes = { ...anterior, email, nome: nome || email };
+
+    const permissoes = { ...anterior, email, nome: nome || email, ativo: true };
+    delete permissoes.uid;
     delete permissoes.todas;
     delete permissoes.igrejas;
+
     if (modo === "TODAS") permissoes.todas = true;
-    else { permissoes.igrejas = {}; selecionadas.forEach(ig => permissoes.igrejas[chaveIgreja(ig)] = true); }
-    delete permissoes.uid;
-    await set(ref(database, caminho), permissoes);
-
-    // Mantém também uma cópia por e-mail. Isso garante que usuários antigos
-    // (que ainda não possuem /permissoes/{uid}) recebam as alterações depois do login.
-    const chaveEmailSincronizada = chaveEmailFirebase(email);
-    await set(ref(database, `permissoesPorEmail/${chaveEmailSincronizada}`), permissoes);
-
-    // Confirma no próprio Firebase que o nome/permissões foram realmente gravados.
-    const confirmacao = await get(ref(database, caminho));
-    const salvo = confirmacao.exists() ? (confirmacao.val() || {}) : {};
-    if (String(salvo.nome || "") !== String(permissoes.nome || "") ||
-        String(salvo.email || "").toLowerCase() !== String(permissoes.email || "").toLowerCase()) {
-      throw new Error("O Firebase não confirmou os dados atualizados.");
+    else {
+      permissoes.igrejas = {};
+      selecionadas.forEach(ig => permissoes.igrejas[chaveIgreja(ig)] = true);
     }
 
-    alert("Permissões atualizadas com sucesso.");
+    // O e-mail é a fonte canônica.
+    const refEmail = ref(database, `permissoesPorEmail/${chave}`);
+    await set(refEmail, permissoes);
+
+    // Se existir UID real, mantém a cópia por UID para compatibilidade.
+    if (uid && !uid.startsWith("legacy:") && !uid.startsWith("email:")) {
+      await set(ref(database, `permissoes/${uid}`), permissoes);
+    }
+
+    // Confirma no Firebase antes de dizer que salvou.
+    const confirmacao = await get(refEmail);
+    const salvo = confirmacao.exists() ? (confirmacao.val() || {}) : {};
+    if (String(salvo.nome || "") !== String(permissoes.nome || "")) {
+      throw new Error("O Firebase não confirmou a alteração do nome.");
+    }
+
+    alert("Alterações salvas com sucesso.");
     limparEdicaoUsuario();
     await carregarListaPermissoes();
   } catch (e) {
-    console.error("Erro ao atualizar permissões:", e);
-    alert(`Não foi possível atualizar o usuário.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}\n\nVerifique se as Rules atualizadas foram publicadas no Realtime Database.`);
+    console.error("Erro ao atualizar usuário:", e);
+    alert(`Não foi possível salvar a alteração.\\n\\nFirebase: ${e?.code || "erro"}\\n${e?.message || ""}`);
   }
 }
 
@@ -857,8 +903,7 @@ async function criarUsuarioPeloAdmin() {
     if (!confirmacaoNova.exists()) throw new Error("A conta foi criada, mas as permissões não foram gravadas no Realtime Database.");
     alert(`Usuário ${email} criado com sucesso.\n\nUID: ${cred.user.uid}\nAcesso: ${modo === "TODAS" ? "TODAS as igrejas" : selecionadas.join(", ")}`);
     limparEdicaoUsuario();
-    await signOut(adminAuth);
-    carregarListaPermissoes();
+    await carregarListaPermissoes();
   } catch (e) {
     console.error(e);
     let msg = e?.message || "Erro ao criar usuário.";
