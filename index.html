@@ -806,6 +806,20 @@ async function editarUsuarioPeloAdmin(uid) {
     else { permissoes.igrejas = {}; selecionadas.forEach(ig => permissoes.igrejas[chaveIgreja(ig)] = true); }
     delete permissoes.uid;
     await set(ref(database, caminho), permissoes);
+
+    // Mantém também uma cópia por e-mail. Isso garante que usuários antigos
+    // (que ainda não possuem /permissoes/{uid}) recebam as alterações depois do login.
+    const chaveEmailSincronizada = chaveEmailFirebase(email);
+    await set(ref(database, `permissoesPorEmail/${chaveEmailSincronizada}`), permissoes);
+
+    // Confirma no próprio Firebase que o nome/permissões foram realmente gravados.
+    const confirmacao = await get(ref(database, caminho));
+    const salvo = confirmacao.exists() ? (confirmacao.val() || {}) : {};
+    if (String(salvo.nome || "") !== String(permissoes.nome || "") ||
+        String(salvo.email || "").toLowerCase() !== String(permissoes.email || "").toLowerCase()) {
+      throw new Error("O Firebase não confirmou os dados atualizados.");
+    }
+
     alert("Permissões atualizadas com sucesso.");
     limparEdicaoUsuario();
     await carregarListaPermissoes();
@@ -833,11 +847,15 @@ async function criarUsuarioPeloAdmin() {
   btn.disabled = true;
   try {
     const cred = await createUserWithEmailAndPassword(adminAuth, email, senha);
-    const permissoes = { email, nome: nome || email, podeEditar: true, podeImportar: true, podeExcluirTudo: true };
+    const permissoes = { email, nome: nome || email, podeEditar: true, podeImportar: true, podeExcluirTudo: true, ativo: true };
     if (modo === "TODAS") permissoes.todas = true;
     else { permissoes.igrejas = {}; selecionadas.forEach(ig => permissoes.igrejas[chaveIgreja(ig)] = true); }
-    await set(ref(database, `permissoes/${cred.user.uid}`), permissoes);
-    alert(`Usuário ${email} criado com sucesso.\n\nUID: ${cred.user.uid}`);
+    const refPermissaoNova = ref(database, `permissoes/${cred.user.uid}`);
+    await set(refPermissaoNova, permissoes);
+    await set(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`), permissoes);
+    const confirmacaoNova = await get(refPermissaoNova);
+    if (!confirmacaoNova.exists()) throw new Error("A conta foi criada, mas as permissões não foram gravadas no Realtime Database.");
+    alert(`Usuário ${email} criado com sucesso.\n\nUID: ${cred.user.uid}\nAcesso: ${modo === "TODAS" ? "TODAS as igrejas" : selecionadas.join(", ")}`);
     limparEdicaoUsuario();
     await signOut(adminAuth);
     carregarListaPermissoes();
@@ -1307,13 +1325,28 @@ document.getElementById("admin-acesso").addEventListener("change", (e) => {
   atualizarResumoIgrejasAdmin();
 });
 
-document.getElementById("btn-entrar").addEventListener("click", () => {
-  const email = document.getElementById("login-email").value;
+document.getElementById("btn-entrar").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim().toLowerCase();
   const senha = document.getElementById("login-senha").value;
-  signInWithEmailAndPassword(auth, email, senha).catch((error) => {
-    alert("Error ao iniciar sesión: Verifique as credenciais.");
-    console.error(error);
-  });
+  if (!email || !senha) {
+    alert("Informe o e-mail e a senha.");
+    return;
+  }
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+  } catch (error) {
+    console.error("Erro real do login:", error);
+    const mensagens = {
+      "auth/invalid-credential": "E-mail ou senha incorretos.",
+      "auth/invalid-login-credentials": "E-mail ou senha incorretos.",
+      "auth/user-not-found": "Este usuário não existe no Firebase Authentication.",
+      "auth/wrong-password": "A senha informada está incorreta.",
+      "auth/invalid-email": "O e-mail informado é inválido.",
+      "auth/user-disabled": "Este usuário está desativado no Firebase Authentication.",
+      "auth/too-many-requests": "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+    };
+    alert(`Não foi possível iniciar a sessão.\n\n${mensagens[error?.code] || error?.message || "Verifique as credenciais."}\n\nCódigo: ${error?.code || "desconhecido"}`);
+  }
 });
 
 // Inicialización de selects en el formulario
