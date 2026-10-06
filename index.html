@@ -63,6 +63,9 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 .bloco-instrumento { display: flex; flex-direction: column; gap: 4px; }
 .par-campos { display: inline-block; vertical-align: middle; }
 
+.sin-definir { color:#d11a2a !important; font-weight:bold; }
+.checkboxes-dropdown label.sin-definir:hover { color:#fff !important; }
+option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
 .titulo-form-novo { margin:0 0 8px 2px; color:#0078D4; font-size:18px; }
 
 /* Formulário de cadastro sempre em uma única linha */
@@ -1496,6 +1499,7 @@ provincias.forEach(prov => {
 instrumentos.forEach(inst => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${inst}" class="chk-instrumento"> ${inst}`;
+  if (inst === "SIN DEFINIR") label.classList.add("sin-definir");
   containerInstrumentos.appendChild(label);
 });
 tipos.forEach(tp => {
@@ -1820,7 +1824,7 @@ function atualizarGrafico(dadosFiltrados) {
   itensInstOrdenados.forEach(item => {
     divListaPct.innerHTML += `
       <div class="item-linha">
-        <span class="item-nome">${item.label} (${item.quantidade})</span>
+        <span class="item-nome${item.label === "SIN DEFINIR" ? ' sin-definir' : ''}">${item.label} (${item.quantidade})</span>
         <span class="item-valor">${item.porcentagem}%</span>
       </div>
     `;
@@ -2250,7 +2254,7 @@ function atualizar(){
       let htmlTipos = "";
       obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas).forEach(par => {
         if(par.instrumento) {
-          htmlInstrumentos += `<div>${par.instrumento}</div>`;
+          htmlInstrumentos += `<div${par.instrumento === "SIN DEFINIR" ? ' class="sin-definir"' : ""}>${par.instrumento}</div>`;
           htmlTipos += `<div>${par.tipo}</div>`;
         }
       });
