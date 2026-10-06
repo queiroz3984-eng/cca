@@ -139,6 +139,8 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
 /* --- RESUMO DE MÚSICOS --- */
 .painel-resumo { display:none; background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,.08); }
 .painel-resumo h3 { margin:0 0 12px 0; color:#0078D4; }
+.btn-imprimir-resumo { background:#0078D4; color:#fff; }
+.btn-imprimir-resumo:hover { background:#005a9e; }
 .resumo-selecao { font-size:13px; margin-bottom:12px; color:#555; }
 .resumo-cards { display:flex; flex-wrap:wrap; gap:12px; }
 .resumo-card { flex:1 1 180px; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:14px; text-align:center; background:#fafafa; }
@@ -321,7 +323,10 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
 </div>
 
 <div class="painel-resumo" id="painel-resumo">
-    <h3>📋 Resumen de Músicos</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
+      <h3 style="margin:0;">📋 Resumen de Músicos</h3>
+      <button type="button" class="btn-imprimir-resumo" id="btn-imprimir-resumo">🖨️ Imprimir Resumen</button>
+    </div>
     <div class="resumo-selecao" id="resumo-selecao">Sin iglesias seleccionadas: se consideran todas las iglesias visibles.</div>
     <div class="resumo-cards">
       <div class="resumo-card">
@@ -2002,6 +2007,49 @@ function gerarResumoMusicos() {
 btnGerarResumo.addEventListener("click", () => {
   gerarResumoMusicos();
 });
+
+function imprimirResumoMusicos() {
+  const painel = document.getElementById("painel-resumo");
+  if (!painel || painel.style.display === "none") return;
+
+  const clone = painel.cloneNode(true);
+  clone.querySelectorAll(".btn-imprimir-resumo").forEach(b => b.remove());
+
+  const hoje = new Date().toLocaleDateString("es-AR");
+  const janela = window.open("", "_blank", "width=900,height=700");
+  if (!janela) { alert("Su navegador bloqueó la ventana de impresión. Permita las ventanas emergentes e intente de nuevo."); return; }
+
+  janela.document.write(`<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<title>Resumen de Músicos - ${hoje}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; color:#222; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h3 { margin:0 0 12px 0; color:#0078D4; }
+  .fecha { font-size:12px; color:#666; margin-bottom:10px; }
+  .resumo-selecao { font-size:13px; margin-bottom:12px; color:#555; }
+  .resumo-cards { display:flex; flex-wrap:wrap; gap:12px; }
+  .resumo-card { flex:1 1 180px; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:14px; text-align:center; background:#fafafa; }
+  .resumo-card .titulo { font-size:12px; font-weight:bold; color:#555; text-transform:uppercase; }
+  .resumo-card .numero { font-size:28px; font-weight:bold; color:#0078D4; margin-top:6px; }
+  .resumo-por-igreja { margin-top:15px; width:100%; border-collapse:collapse; }
+  .resumo-por-igreja th { background:#0078D4; color:#fff; padding:8px; }
+  .resumo-por-igreja td { padding:8px; border:1px solid #ddd; text-align:center; }
+  .resumo-por-igreja td:first-child { text-align:left; font-weight:bold; }
+  .resumo-por-igreja tr { page-break-inside: avoid; }
+  .resumo-por-igreja thead { display: table-header-group; }
+  @page { margin: 12mm; }
+</style></head>
+<body>
+  <div class="fecha">Fecha: ${hoje}</div>
+  ${clone.innerHTML}
+</body></html>`);
+  janela.document.close();
+  janela.focus();
+  setTimeout(() => { janela.print(); }, 300);
+}
+
+document.getElementById("btn-imprimir-resumo").addEventListener("click", imprimirResumoMusicos);
 
 function atualizar(){
   const texto = busca.value.toLowerCase();
