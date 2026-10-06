@@ -423,7 +423,7 @@ const EMAIL_ADMINISTRADOR = "queiroz3984@gmail.com";
 // Use igrejas: "TODAS" para acesso completo.
 // podeEditar: permite editar/excluir registros das igrejas autorizadas.
 // podeImportar: permite importar XLSX.
-// podeExcluirTudo: permite usar o botão "Eliminar Todo".
+// podeExcluirTudo: (sem efeito) o botão "Eliminar Todo" é exclusivo do administrador.
 // IMPORTANTE: troque os exemplos pelos e-mails reais do Firebase Authentication.
 const USUARIOS_ACESSO = {
   // USUÁRIOS COM ACESSO COMPLETO
@@ -1015,7 +1015,7 @@ function aplicarAcessoNaInterface() {
   } else {
     document.getElementById("btn-clique-importar").style.display = "none";
   }
-  document.getElementById("btn-excluir-tudo").style.display = acessoAtual?.podeExcluirTudo ? "inline-block" : "none";
+  document.getElementById("btn-excluir-tudo").style.display = ehAdministrador() ? "inline-block" : "none";
   atualizarIndicadorAcesso();
 }
 
@@ -2513,7 +2513,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
 });
 
 document.getElementById("btn-excluir-tudo").addEventListener("click", () => {
-  if (!acessoAtual?.podeExcluirTudo) { alert("Su usuario no tiene permiso para eliminar registros."); return; }
+  if (!ehAdministrador()) { alert("Solo el administrador puede eliminar todos los registros."); return; }
   if (lista.length === 0) { alert("No hay ningún registro para eliminar."); return; }
 
   const accesoCompleto = acessoAtual.igrejas === "TODAS";
