@@ -66,6 +66,20 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 .sin-definir { color:#d11a2a !important; font-weight:bold; }
 .checkboxes-dropdown label.sin-definir:hover { color:#fff !important; }
 option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
+/* --- EQUILIBRIO DE LA ORQUESTA --- */
+.painel-equilibrio { background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,.05); }
+.painel-equilibrio h3 { margin:0 0 12px 0; color:#0078D4; }
+.eq-grid { display:flex; flex-wrap:wrap; gap:25px; }
+.eq-col { flex:1 1 0; min-width:280px; max-width:460px; }
+.eq-sub { font-size:13px; font-weight:bold; color:#333; margin-bottom:6px; }
+.eq-sub span { font-weight:normal; color:#777; font-size:12px; }
+.eq-canvas { position:relative; height:190px; width:100%; }
+.eq-status { margin-top:8px; font-size:12px; }
+.eq-linha { display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px dashed #eee; }
+.eq-ok { color:#15803d; font-weight:bold; }
+.eq-atencao { color:#b45309; font-weight:bold; }
+.eq-mal { color:#d11a2a; font-weight:bold; }
+.eq-nota { margin-top:10px; font-size:11px; color:#777; }
 .titulo-form-novo { margin:0 0 8px 2px; color:#0078D4; font-size:18px; }
 
 /* Formulário de cadastro sempre em uma única linha */
@@ -291,6 +305,23 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
         <button type="button" class="btn-importar" id="btn-reindexar-escolas" style="display:none;">🎵 Atualizar Escolas de Música</button>
       </div>
     </div>
+  </div>
+
+  <div class="painel-equilibrio" id="painel-equilibrio">
+    <h3>⚖️ Equilibrio de la Orquesta</h3>
+    <div class="eq-grid">
+      <div class="eq-col">
+        <div class="eq-sub">Proporción de familias <span>(ideal: 50% cuerdas · 25% maderas · 25% metales)</span></div>
+        <div class="eq-canvas"><canvas id="graficoFamilias"></canvas></div>
+        <div id="eq-familias-status" class="eq-status"></div>
+      </div>
+      <div class="eq-col">
+        <div class="eq-sub">Distribución de voces <span>(ideal: 25% de cada voz en la orquesta)</span></div>
+        <div class="eq-canvas"><canvas id="graficoVozes"></canvas></div>
+        <div id="eq-vozes-status" class="eq-status"></div>
+      </div>
+    </div>
+    <div class="eq-nota">No entran en el cálculo: Organista (instrumento único), Acordeón y Sin definir (candidatos sin instrumento). Se respetan los filtros activos.</div>
   </div>
 
   <div id="painel-admin-usuarios" style="display:none;background:#fff;padding:18px;border-radius:8px;margin-bottom:20px;border:1px solid #ddd;">
@@ -1875,6 +1906,170 @@ function atualizarGrafico(dadosFiltrados) {
   });
 }
 
+/* --- ⚖️ EQUILIBRIO DE LA ORQUESTA --- */
+// Famílias (organista, acordeón e SIN DEFINIR ficam de fora).
+const FAMILIA_INSTRUMENTO = {
+  "VIOLÍN":"cuerdas", "VIOLA":"cuerdas", "CELLO":"cuerdas",
+  "FLAUTA":"maderas", "CLARINETE":"maderas", "CLARINETE BAJO":"maderas", "CLARÓN":"maderas",
+  "OBOE":"maderas", "FAGOT":"maderas",
+  "SAXO SOPRANO":"maderas", "SAXO ALTO":"maderas", "SAXO TENOR":"maderas", "SAXO BARÍTONO":"maderas",
+  "TROMPETA":"metales", "FISCORNO":"metales", "TROMPPA":"metales", "TROMBONITO":"metales",
+  "TROMBÓN":"metales", "BOMBARDINO":"metales", "TUBA":"metales"
+};
+// Vozes (Tutorial de Adequação das Orquestras / MOO).
+// Metais com a mesma voz principal: Trompa–Flugelhorn (contralto), Trombone–Trombonito (tenor), Eufônio–Barítono (baixo).
+const VOZ_INSTRUMENTO = {
+  "VIOLÍN":"soprano", "FLAUTA":"soprano", "OBOE":"soprano", "CLARINETE":"soprano", "TROMPETA":"soprano", "SAXO SOPRANO":"soprano",
+  "VIOLA":"contralto", "CLARÓN":"contralto", "SAXO ALTO":"contralto", "FISCORNO":"contralto", "TROMPPA":"contralto",
+  "SAXO TENOR":"tenor", "TROMBÓN":"tenor", "TROMBONITO":"tenor",
+  "CELLO":"bajo", "CLARINETE BAJO":"bajo", "FAGOT":"bajo", "SAXO BARÍTONO":"bajo", "BOMBARDINO":"bajo", "TUBA":"bajo"
+};
+const FAMILIAS_EQ = [
+  { id:"cuerdas", nome:"Cuerdas", ideal:50, cor:"#0078D4" },
+  { id:"maderas", nome:"Maderas", ideal:25, cor:"#10b981" },
+  { id:"metales", nome:"Metales", ideal:25, cor:"#f59e0b" }
+];
+const VOZES_EQ = [
+  { id:"soprano",   nome:"Soprano",   cor:"#ec4899" },
+  { id:"contralto", nome:"Contralto", cor:"#8b5cf6" },
+  { id:"tenor",     nome:"Tenor",     cor:"#3b82f6" },
+  { id:"bajo",      nome:"Bajo",      cor:"#14b8a6" }
+];
+let graficoFamilias = null;
+let graficoVozes = null;
+
+function atualizarEquilibrioOrquesta(dadosFiltrados) {
+  const canvasFam = document.getElementById("graficoFamilias");
+  const canvasVoz = document.getElementById("graficoVozes");
+  if (!canvasFam || !canvasVoz) return;
+
+  const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
+  const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
+
+  const contFam = { cuerdas:0, maderas:0, metales:0 };
+  const contVoz = { soprano:0, contralto:0, tenor:0, bajo:0 };
+  const contVozFam = {};
+  VOZES_EQ.forEach(v => { contVozFam[v.id] = { cuerdas:0, maderas:0, metales:0 }; });
+
+  dadosFiltrados.forEach(m => {
+    if (m.inativo) return;
+    obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas).forEach(par => {
+      const inst = (par.instrumento || "").trim().toUpperCase();
+      if (FAMILIA_INSTRUMENTO[inst]) contFam[FAMILIA_INSTRUMENTO[inst]]++;
+      if (VOZ_INSTRUMENTO[inst]) {
+        contVoz[VOZ_INSTRUMENTO[inst]]++;
+        if (FAMILIA_INSTRUMENTO[inst]) contVozFam[VOZ_INSTRUMENTO[inst]][FAMILIA_INSTRUMENTO[inst]]++;
+      }
+    });
+  });
+
+  if (graficoFamilias) { graficoFamilias.destroy(); graficoFamilias = null; }
+  if (graficoVozes) { graficoVozes.destroy(); graficoVozes = null; }
+
+  const statusFam = document.getElementById("eq-familias-status");
+  const statusVoz = document.getElementById("eq-vozes-status");
+  const totalFam = FAMILIAS_EQ.reduce((t, f) => t + contFam[f.id], 0);
+  const totalVoz = VOZES_EQ.reduce((t, v) => t + contVoz[v.id], 0);
+
+  const opcoesBase = (maxY) => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    scales: {
+      y: { beginAtZero: true, max: maxY, ticks: { stepSize: 25, callback: v => v + "%" } }
+    }
+  });
+
+  // ---- Famílias: atual x ideal ----
+  if (totalFam === 0) {
+    statusFam.innerHTML = '<div style="color:#777;">Sin datos para mostrar.</div>';
+  } else {
+    const pct = FAMILIAS_EQ.map(f => +(contFam[f.id] * 100 / totalFam).toFixed(1));
+    graficoFamilias = new Chart(canvasFam.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: FAMILIAS_EQ.map(f => `${f.nome} (${contFam[f.id]})`),
+        datasets: [
+          { label: "Actual %", data: pct, backgroundColor: FAMILIAS_EQ.map(f => f.cor) },
+          { label: "Ideal %", data: FAMILIAS_EQ.map(f => f.ideal), backgroundColor: "#cbd5e1" }
+        ]
+      },
+      options: {
+        ...opcoesBase(100),
+        plugins: {
+          legend: { display: true, labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw}%` } }
+        }
+      }
+    });
+
+    statusFam.innerHTML = FAMILIAS_EQ.map((f, i) => {
+      const diff = pct[i] - f.ideal;
+      const idealQtd = totalFam * f.ideal / 100;
+      const difQtd = Math.round(contFam[f.id] - idealQtd);
+      const absDiff = Math.abs(diff);
+      const classe = absDiff <= 5 ? "eq-ok" : (absDiff <= 10 ? "eq-atencao" : "eq-mal");
+      const rotulo = absDiff <= 5 ? "Equilibrado" : (absDiff <= 10 ? "Atención" : "Desequilibrado");
+      const ajuste = difQtd === 0 ? "" : (difQtd > 0 ? ` · sobran ${difQtd}` : ` · faltan ${Math.abs(difQtd)}`);
+      return `<div class="eq-linha"><span><strong>${f.nome}</strong>: ${pct[i]}% (ideal ${f.ideal}%)${ajuste}</span><span class="${classe}">${rotulo}</span></div>`;
+    }).join("") + `<div class="eq-linha"><span>Total considerado</span><span><strong>${totalFam}</strong> instrumentos</span></div>`;
+  }
+
+  // ---- Vozes: total da orquestra (ideal 25% cada) e composição por família ----
+  if (totalVoz === 0) {
+    statusVoz.innerHTML = '<div style="color:#777;">Sin datos para mostrar.</div>';
+  } else {
+    const idealVoz = totalVoz / 4;
+    const pctV = VOZES_EQ.map(v => +(contVoz[v.id] * 100 / totalVoz).toFixed(1));
+    graficoVozes = new Chart(canvasVoz.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: VOZES_EQ.map(v => `${v.nome} (${contVoz[v.id]})`),
+        datasets: [
+          ...FAMILIAS_EQ.map(f => ({
+            type: "bar",
+            label: f.nome,
+            data: VOZES_EQ.map(v => contVozFam[v.id][f.id]),
+            backgroundColor: f.cor,
+            stack: "voces"
+          })),
+          {
+            type: "line",
+            label: "Ideal (25%)",
+            data: VOZES_EQ.map(() => +idealVoz.toFixed(1)),
+            borderColor: "#475569",
+            borderDash: [6, 4],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, grace: "10%", ticks: { precision: 0 }, title: { display: true, text: "instrumentos" } }
+        },
+        plugins: {
+          legend: { display: true, labels: { boxWidth: 12, font: { size: 11 } } }
+        }
+      }
+    });
+    statusVoz.innerHTML = VOZES_EQ.map((v, i) => {
+      const absDiff = Math.abs(pctV[i] - 25);
+      const classe = absDiff <= 5 ? "eq-ok" : (absDiff <= 10 ? "eq-atencao" : "eq-mal");
+      const rotulo = absDiff <= 5 ? "Equilibrado" : (absDiff <= 10 ? "Atención" : "Desequilibrado");
+      const difQtd = Math.round(contVoz[v.id] - idealVoz);
+      const ajuste = difQtd === 0 ? "" : (difQtd > 0 ? ` · sobran ${difQtd}` : ` · faltan ${Math.abs(difQtd)}`);
+      const porFam = FAMILIAS_EQ.map(f => `${f.nome.toLowerCase()} ${contVozFam[v.id][f.id]}`).join(" · ");
+      return `<div class="eq-linha"><span><strong>${v.nome}</strong>: ${pctV[i]}% (ideal 25%)${ajuste}<br><small style="color:#777;">${porFam}</small></span><span class="${classe}">${rotulo}</span></div>`;
+    }).join("") + `<div class="eq-linha"><span>Total considerado</span><span><strong>${totalVoz}</strong> instrumentos</span></div>`;
+  }
+}
+
 // O painel de gráfico/listas permanece sempre visível.
 // Não é permitido ocultá-lo durante a pesquisa ou atualização dos filtros.
 const graficoContainerSempreVisivel = document.getElementById("grafico-container");
@@ -2030,6 +2225,47 @@ function imprimirResumoMusicos() {
   const clone = painel.cloneNode(true);
   clone.querySelectorAll(".btn-imprimir-resumo").forEach(b => b.remove());
 
+  // Bloco do gráfico: pizza + lista completa de instrumentos (%) + músicos por iglesia
+  const listaInst = document.getElementById("lista-porcentagens");
+  const listaIgr = document.getElementById("lista-igrejas-qtd");
+  if (listaInst && listaInst.innerHTML.trim()) {
+    let imgGrafico = "";
+    try {
+      if (meuGrafico) imgGrafico = `<img src="${meuGrafico.toBase64Image()}" style="width:200px;height:auto;">`;
+    } catch (e) { imgGrafico = ""; }
+    const blocoInstrumentos = `
+      <div class="bloco-instrumentos">
+        <div class="bloco-grafico"><div class="bloco-titulo-grafico">% por Instrumento</div>${imgGrafico}</div>
+        <div class="bloco-lista">
+          <h4>Instrumentos (%)</h4>
+          ${listaInst.innerHTML}
+        </div>
+        <div class="bloco-lista">
+          <h4>Músicos por Iglesia</h4>
+          ${listaIgr ? listaIgr.innerHTML : ""}
+        </div>
+      </div>`;
+    const destino = clone.querySelector("#resumo-tabela-igrejas");
+    if (destino) destino.insertAdjacentHTML("beforebegin", blocoInstrumentos);
+  }
+
+  // Equilíbrio da orquestra (gráficos viram imagens para a impressão)
+  const painelEq = document.getElementById("painel-equilibrio");
+  if (painelEq && (graficoFamilias || graficoVozes)) {
+    const cloneEq = painelEq.cloneNode(true);
+    const trocar = (idCanvas, grafico) => {
+      const c = cloneEq.querySelector("#" + idCanvas);
+      if (!c) return;
+      const wrap = c.parentElement;
+      wrap.style.height = "auto";
+      wrap.innerHTML = grafico ? `<img src="${grafico.toBase64Image()}" style="width:100%;max-width:260px;height:auto;">` : "";
+    };
+    trocar("graficoFamilias", graficoFamilias);
+    trocar("graficoVozes", graficoVozes);
+    const dest2 = clone.querySelector("#resumo-tabela-igrejas");
+    if (dest2) dest2.insertAdjacentHTML("beforebegin", `<div class="eq-impressao">${cloneEq.outerHTML}</div>`);
+  }
+
   const hoje = new Date().toLocaleDateString("es-AR");
   const janela = window.open("", "_blank", "width=900,height=700");
   if (!janela) { alert("Su navegador bloqueó la ventana de impresión. Permita las ventanas emergentes e intente de nuevo."); return; }
@@ -2051,6 +2287,27 @@ function imprimirResumoMusicos() {
   .resumo-por-igreja th { background:#0078D4; color:#fff; padding:8px; border:1px solid #fff; }
   .resumo-por-igreja td { padding:8px; border:1px solid #ddd; text-align:center; }
   .resumo-por-igreja td:first-child { text-align:left; font-weight:bold; }
+  .bloco-instrumentos { display:flex; gap:20px; align-items:flex-start; margin-top:18px; page-break-inside:avoid; }
+  .bloco-grafico { flex:0 0 200px; text-align:center; }
+  .bloco-titulo-grafico { font-size:12px; font-weight:bold; color:#666; margin-bottom:6px; }
+  .bloco-lista { flex:1; font-size:12px; border:1px solid #f0f0f0; border-radius:4px; padding:8px; background:#fafafa; }
+  .bloco-lista h4 { margin:0 0 8px 0; font-size:13px; color:#0078D4; border-bottom:2px solid #0078D4; padding-bottom:3px; }
+  .item-linha { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #ddd; }
+  .item-nome { font-weight:bold; color:#333; }
+  .item-valor { color:#0078D4; font-weight:bold; }
+  .sin-definir { color:#d11a2a !important; }
+  .painel-equilibrio { margin-top:18px; page-break-inside:avoid; }
+  .painel-equilibrio h3 { font-size:15px; }
+  .eq-grid { display:flex; gap:25px; }
+  .eq-col { flex:1; }
+  .eq-sub { font-size:12px; font-weight:bold; margin-bottom:6px; }
+  .eq-sub span { font-weight:normal; color:#777; }
+  .eq-status { margin-top:8px; font-size:12px; }
+  .eq-linha { display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px dashed #ddd; }
+  .eq-ok { color:#15803d; font-weight:bold; }
+  .eq-atencao { color:#b45309; font-weight:bold; }
+  .eq-mal { color:#d11a2a; font-weight:bold; }
+  .eq-nota { margin-top:8px; font-size:11px; color:#777; }
   .resumo-por-igreja tr { page-break-inside: avoid; }
   .resumo-por-igreja thead { display: table-header-group; }
   @page { margin: 12mm; }
@@ -2354,6 +2611,7 @@ function atualizar(){
   contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s) filtrado(s)</strong>`;
   const container = document.getElementById("grafico-container");
   if (container.style.display === "flex") { atualizarGrafico(filtrados); }
+  atualizarEquilibrioOrquesta(filtrados);
 }
 
 function editar(key){ editKey = key; atualizar(); }
