@@ -3033,6 +3033,7 @@ busca.addEventListener("input", atualizar);
 btnLimparBusca.addEventListener("click", () => {
   busca.value = "";
   painelResumo.style.display = "none"; 
+  document.getElementById("painel-equilibrio").style.display = "none";
   document.querySelectorAll('.chk-provincia, .chk-igreja, .chk-instrumento, .chk-tipo, .chk-escuela-musica').forEach(chk => chk.checked = false);
   filtroStatus.value = "todos";
   filtroParentesco.value = "todos";
