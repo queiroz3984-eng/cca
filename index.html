@@ -67,7 +67,7 @@ tr.linha-inativo { background-color: #f2f2f2 !important; color: #777777; opacity
 .checkboxes-dropdown label.sin-definir:hover { color:#fff !important; }
 option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
 /* --- EQUILIBRIO DE LA ORQUESTA --- */
-.painel-equilibrio { background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,.05); }
+.painel-equilibrio { display:none; background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,.05); }
 .painel-equilibrio h3 { margin:0 0 12px 0; color:#0078D4; }
 .eq-grid { display:flex; flex-wrap:wrap; gap:25px; }
 .eq-col { flex:1 1 0; min-width:280px; max-width:460px; }
@@ -84,11 +84,15 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
 .eq-controles select { width:auto; margin:0 0 0 4px; padding:5px; }
 .eq-info { font-size:13px; margin-bottom:12px; color:#333; }
 .eq-nd { color:#6b7280; }
-.eq-tabla { width:100%; padding:0; margin:8px 0 0 0; border-collapse:collapse; font-size:12px; }
-.eq-tabla th { background:#0078D4; color:#fff; padding:6px; text-align:left; }
-.eq-tabla td { padding:5px 6px; border-bottom:1px solid #eee; }
-.eq-tabla td:nth-child(2), .eq-tabla td:nth-child(3), .eq-tabla th:nth-child(2), .eq-tabla th:nth-child(3) { text-align:center; width:70px; }
-.eq-tabla tr.eq-fam td { background:#eef5fc; font-weight:bold; color:#0b4a82; }
+.eq-tablas { display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; align-items:flex-start; }
+.eq-tabla-wrap { flex:1 1 300px; min-width:280px; }
+.eq-tabla { width:100%; padding:0; margin:0; border-collapse:collapse; font-size:12px; table-layout:fixed; }
+.eq-tabla th { background:var(--cor,#0078D4); color:#fff; padding:5px 6px; text-align:left; }
+.eq-tabla td { padding:3px 6px; border-bottom:1px solid #eee; line-height:1.25; }
+.eq-tabla th:nth-child(1), .eq-tabla td:nth-child(1) { width:42%; }
+.eq-tabla th:nth-child(2), .eq-tabla th:nth-child(3), .eq-tabla td:nth-child(2), .eq-tabla td:nth-child(3) { text-align:center; width:15%; }
+.eq-tabla th:nth-child(4), .eq-tabla td:nth-child(4) { width:28%; }
+.eq-tabla tr.eq-total td { font-weight:bold; background:#f3f6f9; border-top:2px solid #cbd5e1; }
 .titulo-form-novo { margin:0 0 8px 2px; color:#0078D4; font-size:18px; }
 
 /* Formulário de cadastro sempre em uma única linha */
@@ -276,7 +280,7 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
       </div>
     </div>
 
-    <button type="button" id="btn-sair" title="Cerrar sesión">🚪 Sair</button>
+    <button type="button" id="btn-sair" title="Cerrar sesión">🚪 Salir</button>
 
   </div>
 
@@ -306,14 +310,67 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
         <button type="button" class="btn-excluir-tudo" id="btn-excluir-tudo">🚨 Eliminar Todo</button>
         <button type="button" class="btn-importar" id="btn-clique-importar">📥 Importar XLSX</button>
         <button type="button" class="btn-excel" id="btn-exportar">📊 Exportar XLSX</button>
-        <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico" style="display:none;">📊 Gráfico sempre visível</button>
+        <button type="button" class="btn-alternar-grafico" id="btn-toggle-grafico" style="display:none;">📊 Gráfico siempre visible</button>
         <button type="button" class="btn-resumo" id="btn-gerar-resumo">📋 Generar Resumen</button>
         
         <button type="button" class="btn-admin" id="btn-admin-usuarios" style="display:none;">⚙️ Administrar usuarios</button>
-        <button type="button" class="btn-importar" id="btn-migrar-dados" style="display:none;">🔄 Migrar dados antigos</button>
-        <button type="button" class="btn-importar" id="btn-reindexar-escolas" style="display:none;">🎵 Atualizar Escolas de Música</button>
+        <button type="button" class="btn-importar" id="btn-migrar-dados" style="display:none;">🔄 Migrar datos antiguos</button>
+        <button type="button" class="btn-importar" id="btn-reindexar-escolas" style="display:none;">🎵 Actualizar Escuelas de Música</button>
       </div>
     </div>
+  </div>
+
+  <div id="painel-admin-usuarios" style="display:none;background:#fff;padding:18px;border-radius:8px;margin-bottom:20px;border:1px solid #ddd;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <h3 style="margin:0;">⚙️ Administrar usuarios</h3>
+    <button type="button" id="btn-fechar-admin" class="btn-limpar">✖ Cerrar</button>
+  </div>
+  <p style="font-size:13px;color:#666;">Administrador: <strong>queiroz3984@gmail.com</strong>. Aquí puede crear nuevos usuarios y definir las iglesias a las que tendrán acceso.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <input type="text" id="admin-nome" placeholder="Nombre" style="width:180px;">
+    <input type="email" id="admin-email" placeholder="E-mail" style="width:230px;">
+    <input type="password" id="admin-senha" placeholder="Contraseña inicial" style="width:180px;">
+    <select id="admin-acesso" style="width:190px;">
+      <option value="IGREJAS">Iglesias específicas</option>
+      <option value="TODAS">Todas las iglesias</option>
+    </select>
+    <button type="button" id="btn-criar-usuario" class="btn-importar">➕ Crear usuario</button>
+  </div>
+  <div class="admin-igreja-dropdown" id="admin-igrejas-wrap" style="margin-top:10px;">
+    <button type="button" id="admin-igrejas-toggle" class="admin-igreja-toggle">
+      <span id="admin-igrejas-resumo">Iglesias específicas</span><span>▾</span>
+    </button>
+    <div id="admin-igrejas" class="admin-igreja-menu"></div>
+  </div>
+  <div style="margin-top:15px;">
+    <strong>Usuarios registrados en el control de acceso</strong>
+    <div id="admin-lista-usuarios" style="margin-top:8px;"></div>
+    <div style="font-size:11px;color:#777;margin-top:8px;">⚠️ "Restablecer contraseña" envía un correo de restablecimiento. "Eliminar" quita el acceso al sistema; eliminar la cuenta de Firebase Authentication requiere una función administrativa en el servidor.</div>
+  </div>
+</div>
+
+<div class="painel-resumo" id="painel-resumo">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
+      <h3 style="margin:0;">📋 Resumen de Músicos</h3>
+      <button type="button" class="btn-imprimir-resumo" id="btn-imprimir-resumo">🖨️ Imprimir Resumen</button>
+    </div>
+    <div class="resumo-selecao" id="resumo-selecao">Sin iglesias seleccionadas: se consideran todas las iglesias visibles.</div>
+    <div class="resumo-cards">
+      <div class="resumo-card">
+        <div class="titulo">Ya tocan en los cultos</div>
+        <div class="numero" id="resumo-cultos">0</div>
+        <div style="font-size:11px;color:#777;">ENC. REGIONAL · ENCARGADO · EXAMINADORA · INSTRUCTOR · OFICIALIZADO · CULTO OFICIAL</div>
+      </div>
+      <div class="resumo-card">
+        <div class="titulo">RJM / ENSAYO</div>
+        <div class="numero" id="resumo-rjm">0</div>
+      </div>
+      <div class="resumo-card">
+        <div class="titulo">Total de Alumnos</div>
+        <div class="numero" id="resumo-alunos">0</div>
+      </div>
+    </div>
+    <div id="resumo-tabela-igrejas"></div>
   </div>
 
   <div class="painel-equilibrio" id="painel-equilibrio">
@@ -346,59 +403,6 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
     <div class="eq-sub" style="margin-top:16px;">Adecuación por instrumento</div>
     <div id="eq-tabla"></div>
     <div class="eq-nota">No entran en el cálculo: Organista (instrumento único), Acordeón y Sin definir (candidatos sin instrumento). Se respetan los filtros activos.</div>
-  </div>
-
-  <div id="painel-admin-usuarios" style="display:none;background:#fff;padding:18px;border-radius:8px;margin-bottom:20px;border:1px solid #ddd;">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <h3 style="margin:0;">⚙️ Administrar usuarios</h3>
-    <button type="button" id="btn-fechar-admin" class="btn-limpar">✖ Fechar</button>
-  </div>
-  <p style="font-size:13px;color:#666;">Administrador: <strong>queiroz3984@gmail.com</strong>. Aqui você pode criar novos usuários e definir as igrejas às quais terão acesso.</p>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-    <input type="text" id="admin-nome" placeholder="Nome" style="width:180px;">
-    <input type="email" id="admin-email" placeholder="E-mail" style="width:230px;">
-    <input type="password" id="admin-senha" placeholder="Senha inicial" style="width:180px;">
-    <select id="admin-acesso" style="width:190px;">
-      <option value="IGREJAS">Igrejas específicas</option>
-      <option value="TODAS">Todas las iglesias</option>
-    </select>
-    <button type="button" id="btn-criar-usuario" class="btn-importar">➕ Criar usuário</button>
-  </div>
-  <div class="admin-igreja-dropdown" id="admin-igrejas-wrap" style="margin-top:10px;">
-    <button type="button" id="admin-igrejas-toggle" class="admin-igreja-toggle">
-      <span id="admin-igrejas-resumo">Iglesias específicas</span><span>▾</span>
-    </button>
-    <div id="admin-igrejas" class="admin-igreja-menu"></div>
-  </div>
-  <div style="margin-top:15px;">
-    <strong>Usuários cadastrados no controle de acesso</strong>
-    <div id="admin-lista-usuarios" style="margin-top:8px;"></div>
-    <div style="font-size:11px;color:#777;margin-top:8px;">⚠️ "Redefinir senha" envia um e-mail de redefinição. "Excluir" remove o acesso do sistema; a exclusão da conta do Firebase Authentication exige uma função administrativa no servidor.</div>
-  </div>
-</div>
-
-<div class="painel-resumo" id="painel-resumo">
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
-      <h3 style="margin:0;">📋 Resumen de Músicos</h3>
-      <button type="button" class="btn-imprimir-resumo" id="btn-imprimir-resumo">🖨️ Imprimir Resumen</button>
-    </div>
-    <div class="resumo-selecao" id="resumo-selecao">Sin iglesias seleccionadas: se consideran todas las iglesias visibles.</div>
-    <div class="resumo-cards">
-      <div class="resumo-card">
-        <div class="titulo">Ya tocan en los cultos</div>
-        <div class="numero" id="resumo-cultos">0</div>
-        <div style="font-size:11px;color:#777;">ENC. REGIONAL · ENCARGADO · EXAMINADORA · INSTRUCTOR · OFICIALIZADO · CULTO OFICIAL</div>
-      </div>
-      <div class="resumo-card">
-        <div class="titulo">RJM / ENSAYO</div>
-        <div class="numero" id="resumo-rjm">0</div>
-      </div>
-      <div class="resumo-card">
-        <div class="titulo">Total de Alumnos</div>
-        <div class="numero" id="resumo-alunos">0</div>
-      </div>
-    </div>
-    <div id="resumo-tabela-igrejas"></div>
   </div>
 
   <h3 class="titulo-form-novo">Agregar Nuevo</h3>
@@ -725,7 +729,7 @@ async function carregarListaPermissoes() {
       if (snapEmail.exists()) dadosEmail = snapEmail.val() || {};
     } catch (e) {
       console.error("Não foi possível ler /permissoesPorEmail:", e);
-      throw new Error(`Não foi possível ler as permissões por e-mail: ${e?.code || e?.message || e}`);
+      throw new Error(`No fue posible leer los permisos por correo electrónico: ${e?.code || e?.message || e}`);
     }
 
     Object.entries(dadosEmail).forEach(([chave, u]) => {
@@ -771,16 +775,16 @@ async function carregarListaPermissoes() {
         ? "TODAS"
         : Object.keys(u.igrejas || {}).map(k => igrejas.find(i => chaveIgreja(i) === k) || k).join(", ");
       return `<div class="admin-usuario-linha" data-uid="${uid}">
-        <div class="admin-usuario-dados"><strong>Nome: ${u.nome || u.email || uid}</strong><br><span style="color:#555">E-mail: ${u.email || ""}</span><br><span style="color:#777;font-size:11px">Senha: •••••••• (não visível)</span><br><span class="admin-badge">Iglesias: ${acesso || "Sem acceso"}</span></div>
+        <div class="admin-usuario-dados"><strong>Nombre: ${u.nome || u.email || uid}</strong><br><span style="color:#555">E-mail: ${u.email || ""}</span><br><span style="color:#777;font-size:11px">Contraseña: •••••••• (no visible)</span><br><span class="admin-badge">Iglesias: ${acesso || "Sin acceso"}</span></div>
         <div class="admin-usuario-acoes">
           <button type="button" class="btn-admin-editar" data-uid="${uid}">✏️ Editar</button>
-          <button type="button" class="btn-admin-reset" data-email="${u.email || ""}">🔑 Redefinir senha</button>
-          <button type="button" class="btn-limpar admin-remover-permissao" data-uid="${uid}">🗑️ Excluir</button>
+          <button type="button" class="btn-admin-reset" data-email="${u.email || ""}">🔑 Restablecer contraseña</button>
+          <button type="button" class="btn-limpar admin-remover-permissao" data-uid="${uid}">🗑️ Eliminar</button>
         </div>
       </div>`;
     }).join("");
 
-    box.innerHTML = linhas || "<div style='color:#777'>Nenhum usuário cadastrado.</div>";
+    box.innerHTML = linhas || "<div style='color:#777'>Ningún usuario registrado.</div>";
 
     box.querySelectorAll(".btn-admin-editar").forEach(btn => btn.addEventListener("click", async () => {
       const uid = btn.dataset.uid;
@@ -794,7 +798,7 @@ async function carregarListaPermissoes() {
         const snap = await get(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`));
         if (snap.exists()) u = snap.val() || {};
       } catch (e) {
-        alert(`Não foi possível carregar as permissões de ${email}.\\n${e?.message || ""}`);
+        alert(`No fue posible cargar los permisos de ${email}.\\n${e?.message || ""}`);
         return;
       }
       if (!u) u = porEmail.get(email) || USUARIOS_ACESSO[email];
@@ -811,7 +815,7 @@ async function carregarListaPermissoes() {
       document.getElementById("admin-igrejas").style.opacity = u.todas ? "0.45" : "1";
       atualizarResumoIgrejasAdmin();
       const btnCriar = document.getElementById("btn-criar-usuario");
-      btnCriar.textContent = "💾 Salvar alterações";
+      btnCriar.textContent = "💾 Guardar cambios";
       btnCriar.dataset.editUid = uid;
       btnCriar.dataset.editando = "true";
       document.getElementById("admin-nome").focus();
@@ -819,23 +823,23 @@ async function carregarListaPermissoes() {
 
     box.querySelectorAll(".btn-admin-reset").forEach(btn => btn.addEventListener("click", async () => {
       const email = btn.dataset.email;
-      if (!email) { alert("Este usuário não possui e-mail salvo nas permissões."); return; }
-      if (!confirm(`Enviar um e-mail de redefinição de senha para ${email}?`)) return;
+      if (!email) { alert("Este usuario no tiene correo electrónico guardado en los permisos."); return; }
+      if (!confirm(`¿Enviar un correo de restablecimiento de contraseña a ${email}?`)) return;
       try {
         await sendPasswordResetEmail(auth, email);
-        alert(`E-mail de redefinição enviado para ${email}.`);
+        alert(`Correo de restablecimiento enviado a ${email}.`);
       } catch (e) {
         console.error(e);
-        alert("Não foi possível enviar o e-mail de redefinição. Verifique a configuração do Firebase Authentication.");
+        alert("No fue posible enviar el correo de restablecimiento. Verifique la configuración de Firebase Authentication.");
       }
     }));
 
     box.querySelectorAll(".admin-remover-permissao").forEach(btn => btn.addEventListener("click", async () => {
       const uid = btn.dataset.uid;
       const linha = btn.closest(".admin-usuario-linha");
-      const email = linha?.querySelector(".admin-usuario-dados span[style*='color:#555']")?.textContent?.replace("E-mail: ", "").trim().toLowerCase() || "este usuário";
+      const email = linha?.querySelector(".admin-usuario-dados span[style*='color:#555']")?.textContent?.replace("E-mail: ", "").trim().toLowerCase() || "este usuario";
       if (email === EMAIL_ADMINISTRADOR) { alert("El administrador principal no puede ser excluido por este panel."); return; }
-      if (!confirm(`Excluir o acesso de ${email}?\\n\\nA conta continuará existiendo en Firebase Authentication, pero quedará sin permisos para entrar al sistema.`)) return;
+      if (!confirm(`¿Eliminar el acceso de ${email}?\\n\\nA conta continuará existiendo en Firebase Authentication, pero quedará sin permisos para entrar al sistema.`)) return;
       try {
         await remove(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`));
         if (uid && !uid.startsWith("legacy:") && !uid.startsWith("email:")) {
@@ -844,11 +848,11 @@ async function carregarListaPermissoes() {
         await carregarListaPermissoes();
       } catch (e) {
         console.error(e);
-        alert(`Não foi possível excluir o acesso.\\n${e?.code || ""}\\n${e?.message || ""}`);
+        alert(`No fue posible eliminar el acceso.\\n${e?.code || ""}\\n${e?.message || ""}`);
       }
     }));
   } catch (e) {
-    box.innerHTML = `<div style='color:#b91c1c'>Não foi possível carregar os usuários. Erro do Firebase: ${e?.code || e?.message || "permissão negada"}. Verifique as Rules do Realtime Database.</div>`;
+    box.innerHTML = `<div style='color:#b91c1c'>No fue posible cargar los usuarios. Error de Firebase: ${e?.code || e?.message || "permiso denegado"}. Verifique las Rules de Realtime Database.</div>`;
     console.error(e);
   }
 }
@@ -865,7 +869,7 @@ function limparEdicaoUsuario() {
   document.getElementById("admin-igrejas").style.opacity = "1";
   document.getElementById("admin-igrejas")?.classList.remove("aberto");
   atualizarResumoIgrejasAdmin();
-  btn.textContent = "➕ Criar usuário";
+  btn.textContent = "➕ Crear usuario";
   delete btn.dataset.editUid;
   delete btn.dataset.editando;
 }
@@ -876,8 +880,8 @@ async function editarUsuarioPeloAdmin(uid) {
   const email = document.getElementById("admin-email").value.trim().toLowerCase();
   const modo = document.getElementById("admin-acesso").value;
   const selecionadas = [...document.querySelectorAll(".admin-igreja:checked")].map(c => c.value);
-  if (!email) { alert("Informe o e-mail."); return; }
-  if (modo === "IGREJAS" && selecionadas.length === 0) { alert("Selecione pelo menos uma igreja."); return; }
+  if (!email) { alert("Ingrese el correo electrónico."); return; }
+  if (modo === "IGREJAS" && selecionadas.length === 0) { alert("Seleccione al menos una iglesia."); return; }
 
   try {
     const chave = chaveEmailFirebase(email);
@@ -929,15 +933,15 @@ async function editarUsuarioPeloAdmin(uid) {
     const confirmacao = await get(refEmail);
     const salvo = confirmacao.exists() ? (confirmacao.val() || {}) : {};
     if (String(salvo.nome || "") !== String(permissoes.nome || "")) {
-      throw new Error("O Firebase não confirmou a alteração do nome.");
+      throw new Error("Firebase no confirmó el cambio del nombre.");
     }
 
-    alert("Alterações salvas com sucesso.");
+    alert("Cambios guardados con éxito.");
     limparEdicaoUsuario();
     await carregarListaPermissoes();
   } catch (e) {
     console.error("Erro ao atualizar usuário:", e);
-    alert(`Não foi possível salvar a alteração.\\n\\nFirebase: ${e?.code || "erro"}\\n${e?.message || ""}`);
+    alert(`No fue posible guardar el cambio.\\n\\nFirebase: ${e?.code || "error"}\\n${e?.message || ""}`);
   }
 }
 
@@ -953,9 +957,9 @@ async function criarUsuarioPeloAdmin() {
   const senha = document.getElementById("admin-senha").value;
   const modo = document.getElementById("admin-acesso").value;
   const selecionadas = [...document.querySelectorAll(".admin-igreja:checked")].map(c => c.value);
-  if (!email || !senha) { alert("Informe o e-mail e a senha inicial."); return; }
-  if (senha.length < 6) { alert("A senha deve ter pelo menos 6 caracteres."); return; }
-  if (modo === "IGREJAS" && selecionadas.length === 0) { alert("Selecione pelo menos uma igreja."); return; }
+  if (!email || !senha) { alert("Ingrese el correo electrónico y la contraseña inicial."); return; }
+  if (senha.length < 6) { alert("La contraseña debe tener al menos 6 caracteres."); return; }
+  if (modo === "IGREJAS" && selecionadas.length === 0) { alert("Seleccione al menos una iglesia."); return; }
   btn.disabled = true;
   try {
     const cred = await createUserWithEmailAndPassword(adminAuth, email, senha);
@@ -966,14 +970,14 @@ async function criarUsuarioPeloAdmin() {
     await set(refPermissaoNova, permissoes);
     await set(ref(database, `permissoesPorEmail/${chaveEmailFirebase(email)}`), permissoes);
     const confirmacaoNova = await get(refPermissaoNova);
-    if (!confirmacaoNova.exists()) throw new Error("A conta foi criada, mas as permissões não foram gravadas no Realtime Database.");
-    alert(`Usuário ${email} criado com sucesso.\n\nUID: ${cred.user.uid}\nAcesso: ${modo === "TODAS" ? "TODAS as igrejas" : selecionadas.join(", ")}`);
+    if (!confirmacaoNova.exists()) throw new Error("La cuenta fue creada, pero los permisos no se guardaron en Realtime Database.");
+    alert(`Usuario ${email} creado con éxito.\n\nUID: ${cred.user.uid}\nAcceso: ${modo === "TODAS" ? "TODAS las iglesias" : selecionadas.join(", ")}`);
     limparEdicaoUsuario();
     await carregarListaPermissoes();
   } catch (e) {
     console.error(e);
-    let msg = e?.message || "Erro ao criar usuário.";
-    if (e?.code === "auth/email-already-in-use") msg = "Este e-mail já está cadastrado no Firebase Authentication.";
+    let msg = e?.message || "Error al crear el usuario.";
+    if (e?.code === "auth/email-already-in-use") msg = "Este correo electrónico ya está registrado en Firebase Authentication.";
     alert(msg);
   } finally { btn.disabled = false; }
 }
@@ -1131,7 +1135,15 @@ let igrejas = [];
 provincias.forEach(p => { igrejas = igrejas.concat(provinciasEIgrejas[p]); });
 igrejas = [...new Set(igrejas)].sort(); // Remover duplicados y ordenar
 
-const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CELLO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA","SIN DEFINIR"];
+// "CELLO" passou a se chamar "CHELO": registros antigos são convertidos ao carregar/importar.
+function normalizarNomesInstrumento(texto) {
+  if (!texto) return texto;
+  return String(texto).split(",").map(i => {
+    const t = i.trim();
+    return t.toUpperCase() === "CELLO" ? "CHELO" : t;
+  }).join(", ");
+}
+const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CHELO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA","SIN DEFINIR"];
 
 // Ordem fixa dos instrumentos: usada em todas as pesquisas, listas, tabela e gráfico.
 const ordemInstrumentos = new Map(instrumentos.map((instrumento, indice) => [instrumento, indice]));
@@ -1288,7 +1300,8 @@ async function carregarDadosAutorizados() {
           key: childSnapshot.key,
           igrejaKey: valor.igrejaKey || chaveIgreja(valor.igreja) || keyIgreja,
           __iglesiaKey: keyIgreja,
-          ...valor
+          ...valor,
+          instrumento: normalizarNomesInstrumento(valor.instrumento)
         });
       });
       dadosPorIgreja.set(keyIgreja, registros);
@@ -1301,7 +1314,7 @@ async function carregarDadosAutorizados() {
 }
 async function reindexarEscolasDeMusica() {
   if (!ehAdministrador()) return;
-  if (!confirm("Atualizar os índices das Escolas de Música? Os registros continuarão nas igrejas de origem.")) return;
+  if (!confirm("¿Actualizar los índices de las Escuelas de Música? Los registros continuarán en las iglesias de origen.")) return;
   try {
     const tarefas = [];
     for (const igreja of igrejas) {
@@ -1318,11 +1331,11 @@ async function reindexarEscolasDeMusica() {
       });
     }
     await Promise.all(tarefas);
-    alert(`Índices de Escola de Música atualizados: ${tarefas.length} registro(s).`);
+    alert(`Índices de Escuela de Música actualizados: ${tarefas.length} registro(s).`);
     await carregarDadosAutorizados();
   } catch (e) {
     console.error(e);
-    alert(`Não foi possível atualizar os índices das Escolas de Música.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}`);
+    alert(`No fue posible actualizar los índices de las Escuelas de Música.\n\nFirebase: ${e?.code || "error"}\n${e?.message || ""}`);
   }
 }
 
@@ -1370,7 +1383,7 @@ async function migrarDadosAntigos() {
 }
 
 btnSair.addEventListener("click", async () => {
-  if (confirm("¿Deseja sair do sistema?")) {
+  if (confirm("¿Desea salir del sistema?")) {
     await signOut(auth);
   }
 });
@@ -1440,7 +1453,7 @@ document.getElementById("btn-entrar").addEventListener("click", async () => {
   const email = document.getElementById("login-email").value.trim().toLowerCase();
   const senha = document.getElementById("login-senha").value;
   if (!email || !senha) {
-    alert("Informe o e-mail e a senha.");
+    alert("Ingrese el correo electrónico y la contraseña.");
     return;
   }
   try {
@@ -1448,15 +1461,15 @@ document.getElementById("btn-entrar").addEventListener("click", async () => {
   } catch (error) {
     console.error("Erro real do login:", error);
     const mensagens = {
-      "auth/invalid-credential": "E-mail ou senha incorretos.",
-      "auth/invalid-login-credentials": "E-mail ou senha incorretos.",
-      "auth/user-not-found": "Este usuário não existe no Firebase Authentication.",
-      "auth/wrong-password": "A senha informada está incorreta.",
-      "auth/invalid-email": "O e-mail informado é inválido.",
-      "auth/user-disabled": "Este usuário está desativado no Firebase Authentication.",
-      "auth/too-many-requests": "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+      "auth/invalid-credential": "Correo electrónico o contraseña incorrectos.",
+      "auth/invalid-login-credentials": "Correo electrónico o contraseña incorrectos.",
+      "auth/user-not-found": "Este usuario no existe en Firebase Authentication.",
+      "auth/wrong-password": "La contraseña ingresada es incorrecta.",
+      "auth/invalid-email": "El correo electrónico ingresado no es válido.",
+      "auth/user-disabled": "Este usuario está deshabilitado en Firebase Authentication.",
+      "auth/too-many-requests": "Demasiados intentos. Espere unos minutos e intente nuevamente."
     };
-    alert(`Não foi possível iniciar a sessão.\n\n${mensagens[error?.code] || error?.message || "Verifique as credenciais."}\n\nCódigo: ${error?.code || "desconhecido"}`);
+    alert(`No fue posible iniciar sesión.\n\n${mensagens[error?.code] || error?.message || "Verifique las credenciales."}\n\nCódigo: ${error?.code || "desconocido"}`);
   }
 });
 
@@ -1824,7 +1837,7 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     })
     .catch((e) => {
       console.error("Erro ao salvar músico:", e);
-      alert(`Não foi possível salvar o músico.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}\n\nVerifique as Rules e o acesso da igreja.`);
+      alert(`No fue posible guardar el músico.\n\nFirebase: ${e?.code || "error"}\n${e?.message || ""}\n\nVerifique las Rules y el acceso de la iglesia.`);
     });
   return;
 });
@@ -1916,6 +1929,27 @@ function atualizarGrafico(dadosFiltrados) {
         ]
       }]
     },
+    plugins: [{
+      id: 'porcentagemNasFatias',
+      afterDatasetsDraw(chart) {
+        const c = chart.ctx;
+        const meta = chart.getDatasetMeta(0);
+        const valores = chart.data.datasets[0].data;
+        c.save();
+        c.font = 'bold 9px Arial';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillStyle = '#fff';
+        c.shadowColor = 'rgba(0,0,0,0.6)';
+        c.shadowBlur = 2;
+        meta.data.forEach((arco, i) => {
+          if (!(valores[i] >= 4)) return; // fatias muito pequenas não comportam o texto
+          const pos = arco.tooltipPosition();
+          c.fillText(Math.round(valores[i]) + '%', pos.x, pos.y);
+        });
+        c.restore();
+      }
+    }],
     options: {
       responsive: true,
       maintainAspectRatio: true,
@@ -1937,7 +1971,7 @@ const MOO_FORMACION = {"completa":{"sizes":[4,8,12,16,20,24,28,32,36,40,44,48,52
 
 // Instrumento do sistema -> linha da planilha (Fiscorno = Flugelhorn, Bombardino = Eufônio, Clarón = Clarinete alto).
 const GRUPO_INSTRUMENTO = {
-  "VIOLÍN":"violin", "VIOLA":"viola", "CELLO":"cello",
+  "VIOLÍN":"violin", "VIOLA":"viola", "CHELO":"cello",
   "FLAUTA":"flauta", "OBOE":"oboe", "FAGOT":"fagot",
   "CLARINETE":"clarinete", "CLARÓN":"clarinete_alto", "CLARINETE BAJO":"clarinete_bajo",
   "SAXO SOPRANO":"saxo_soprano", "SAXO ALTO":"saxo_alto", "SAXO TENOR":"saxo_tenor", "SAXO BARÍTONO":"saxo_baritono",
@@ -2125,30 +2159,31 @@ function atualizarEquilibrioOrquesta(dadosFiltrados) {
     return `<div class="eq-linha"><span><strong>${v.nome}</strong>: ${actVoz[v.id]} de ${idealVoz[i]} (${pctVoz[i]}% · ideal ${pctIdealVoz[i]}%)${ajuste(actVoz[v.id], idealVoz[i])}<br><small style="color:#777;">${porFam}</small></span><span class="${classe}">${rotulo}</span></div>`;
   }).join("");
 
-  // ---- Tabela de adequação por instrumento ----
+  // ---- Tabela de adequação por instrumento (uma mini-tabela por família, lado a lado) ----
   const chavesPorGrupo = {};
   Object.keys(GRUPO_INSTRUMENTO).forEach(k => {
     (chavesPorGrupo[GRUPO_INSTRUMENTO[k]] = chavesPorGrupo[GRUPO_INSTRUMENTO[k]] || []).push(k);
   });
-  let linhas = "";
-  FAMILIAS_EQ.forEach(f => {
-    linhas += `<tr class="eq-fam"><td>${f.nome}</td><td>${D.fam[f.id][idx]}</td><td>${actFam[f.id]}</td><td></td></tr>`;
+  const nomeBonito = k => k.charAt(0) + k.slice(1).toLowerCase();
+  const plural = (n, um, varios) => `${n === 1 ? um : varios} ${n}`;
+  tabela.innerHTML = '<div class="eq-tablas">' + FAMILIAS_EQ.map(f => {
+    let linhas = "";
     D.rows.filter(r => r.fam === f.id && (r.ideal[idx] > 0 || (cont[r.id] || 0) > 0)).forEach(r => {
       const ideal = r.ideal[idx];
       const act = cont[r.id] || 0;
       let estado, classe, actTxt = act;
-      if (GRUPOS_SIN_EQUIVALENTE.includes(r.id)) { estado = "No registrable en el sistema"; classe = "eq-nd"; actTxt = "—"; }
+      if (GRUPOS_SIN_EQUIVALENTE.includes(r.id)) { estado = "No registrable"; classe = "eq-nd"; actTxt = "—"; }
       else if (ideal === 0 && act > 0) { estado = "Incompatible"; classe = "eq-mal"; }
-      else if (act < ideal) { estado = `Necesidad (faltan ${ideal - act})`; classe = "eq-atencao"; }
-      else if (act > ideal) { estado = `Exceso (sobran ${act - ideal})`; classe = "eq-mal"; }
+      else if (act < ideal) { estado = plural(ideal - act, "Falta", "Faltan"); classe = "eq-atencao"; }
+      else if (act > ideal) { estado = plural(act - ideal, "Sobra", "Sobran"); classe = "eq-mal"; }
       else { estado = "OK"; classe = "eq-ok"; }
       const chaves = chavesPorGrupo[r.id] || [];
       const detalle = chaves.length > 1 && act > 0
-        ? `<br><small style="color:#777;">${chaves.map(k => `${k.toLowerCase()} ${contInst[k] || 0}`).join(" · ")}</small>` : "";
+        ? `<br><small style="color:#777;">${chaves.map(k => `${nomeBonito(k)} ${contInst[k] || 0}`).join(" · ")}</small>` : "";
       linhas += `<tr><td>${r.nome}${detalle}</td><td>${ideal}</td><td>${actTxt}</td><td class="${classe}">${estado}</td></tr>`;
     });
-  });
-  tabela.innerHTML = `<table class="eq-tabla"><thead><tr><th>Instrumento</th><th>Ideal</th><th>Actual</th><th>Adecuación</th></tr></thead><tbody>${linhas}</tbody></table>`;
+    return `<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr class="eq-fam" style="--cor:${f.cor};"><th>${f.nome}</th><th>Ideal</th><th>Actual</th><th>Adecuación</th></tr></thead><tbody>${linhas}<tr class="eq-total"><td>Total</td><td>${D.fam[f.id][idx]}</td><td>${actFam[f.id]}</td><td></td></tr></tbody></table></div>`;
+  }).join("") + '</div>';
 }
 
 // O painel de gráfico/listas permanece sempre visível.
@@ -2293,6 +2328,8 @@ function gerarResumoMusicos() {
 
   document.getElementById("resumo-tabela-igrejas").innerHTML = html;
   painelResumo.style.display = "block";
+  document.getElementById("painel-equilibrio").style.display = "block";
+  atualizarEquilibrioOrquesta(filtrados);
 }
 
 btnGerarResumo.addEventListener("click", () => {
@@ -2392,11 +2429,15 @@ function imprimirResumoMusicos() {
   .eq-nota { margin-top:8px; font-size:11px; color:#777; }
   .eq-info { font-size:12px; margin-bottom:8px; }
   .eq-nd { color:#6b7280; }
-  .eq-tabla { width:100%; border-collapse:collapse; font-size:11px; margin-top:6px; }
-  .eq-tabla th { background:#0078D4; color:#fff; padding:5px; text-align:left; }
-  .eq-tabla td { padding:4px 5px; border-bottom:1px solid #ddd; }
-  .eq-tabla td:nth-child(2), .eq-tabla td:nth-child(3), .eq-tabla th:nth-child(2), .eq-tabla th:nth-child(3) { text-align:center; width:60px; }
-  .eq-tabla tr.eq-fam td { background:#eef5fc; font-weight:bold; color:#0b4a82; }
+  .eq-tablas { display:flex; gap:10px; margin-top:6px; align-items:flex-start; }
+  .eq-tabla-wrap { flex:1; min-width:0; }
+  .eq-tabla { width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; }
+  .eq-tabla th { background:var(--cor,#0078D4); color:#fff; padding:4px; text-align:left; }
+  .eq-tabla td { padding:3px 4px; border-bottom:1px solid #ddd; line-height:1.2; }
+  .eq-tabla th:nth-child(1), .eq-tabla td:nth-child(1) { width:40%; }
+  .eq-tabla th:nth-child(2), .eq-tabla th:nth-child(3), .eq-tabla td:nth-child(2), .eq-tabla td:nth-child(3) { text-align:center; width:16%; }
+  .eq-tabla th:nth-child(4), .eq-tabla td:nth-child(4) { width:28%; }
+  .eq-tabla tr.eq-total td { font-weight:bold; background:#f3f6f9; border-top:2px solid #cbd5e1; }
   .eq-tabla tr { page-break-inside:avoid; }
   .resumo-por-igreja tr { page-break-inside: avoid; }
   .resumo-por-igreja thead { display: table-header-group; }
@@ -2541,7 +2582,7 @@ function atualizar(){
         <td><input type="text" class="edit-contato" value="${m.contato}" style="width:90%; padding:4px;" required></td>
         <td>
           <div style="display: flex; flex-direction: column; gap: 2px;">
-            <label style="font-size: 11px;"><input type="checkbox" class="edit-inativo" ${m.inativo ? 'checked' : ''}> Inativo</label>
+            <label style="font-size: 11px;"><input type="checkbox" class="edit-inativo" ${m.inativo ? 'checked' : ''}> Inactivo</label>
             <input type="text" class="edit-motivo" value="${m.motivoInativo || ''}" placeholder="Motivo..." style="font-size:11px; padding:2px; ${m.inativo ? '' : 'display:none;'}">
           </div>
         </td>
@@ -2701,7 +2742,7 @@ function atualizar(){
   contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s) filtrado(s)</strong>`;
   const container = document.getElementById("grafico-container");
   if (container.style.display === "flex") { atualizarGrafico(filtrados); }
-  atualizarEquilibrioOrquesta(filtrados);
+  if (document.getElementById("painel-equilibrio").style.display === "block") { atualizarEquilibrioOrquesta(filtrados); }
 }
 
 function editar(key){ editKey = key; atualizar(); }
@@ -2779,7 +2820,7 @@ function salvarInline(key, tr) {
   })().then(() => { 
     editKey = null; 
     carregarDadosAutorizados();
-  }).catch((e) => { console.error(e); alert(`No fue posible guardar el registro.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}`); });
+  }).catch((e) => { console.error(e); alert(`No fue posible guardar el registro.\n\nFirebase: ${e?.code || "error"}\n${e?.message || ""}`); });
 }
 
 function excluir(key){
@@ -2791,7 +2832,7 @@ function excluir(key){
       .then(() => carregarDadosAutorizados())
       .catch(e => {
         console.error(e);
-        alert(`No fue posible eliminar el registro.\n\nFirebase: ${e?.code || "erro"}\n${e?.message || ""}`);
+        alert(`No fue posible eliminar el registro.\n\nFirebase: ${e?.code || "error"}\n${e?.message || ""}`);
       });
   }
 }
@@ -2906,7 +2947,7 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
         nome: nomeImportar,
         hermano: hermanoImportar && !hermanaImportar,
         hermana: hermanaImportar && !hermanoImportar,
-        instrumento: getVal(idxInstrumento), 
+        instrumento: normalizarNomesInstrumento(getVal(idxInstrumento)), 
         tipo: getVal(idxTipo), 
         contato: getVal(idxContato),
         inativo: inativoImportar,
