@@ -2168,7 +2168,7 @@ function atualizarEquilibrioOrquesta(dadosFiltrados) {
   const plural = (n, um, varios) => `${n === 1 ? um : varios} ${n}`;
   tabela.innerHTML = '<div class="eq-tablas">' + FAMILIAS_EQ.map(f => {
     let linhas = "";
-    D.rows.filter(r => r.fam === f.id && (r.ideal[idx] > 0 || (cont[r.id] || 0) > 0)).forEach(r => {
+    D.rows.filter(r => r.id !== "cornet" && r.fam === f.id && (r.ideal[idx] > 0 || (cont[r.id] || 0) > 0)).forEach(r => {
       const ideal = r.ideal[idx];
       const act = cont[r.id] || 0;
       let estado, classe, actTxt = act;
