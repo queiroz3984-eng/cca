@@ -95,8 +95,12 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
 .eq-tabla tr.eq-total td { font-weight:bold; background:#f3f6f9; border-top:2px solid #cbd5e1; }
 .titulo-form-novo { margin:0 0 8px 2px; color:#0078D4; font-size:18px; }
 
-/* Formulário de cadastro sempre em uma única linha */
-#formMusico {
+/* Formulário de cadastro: oculto até clicar em "Agregar Nuevo". Linha principal sempre em uma única linha. */
+.barra-agregar { margin: 0 0 10px 0; }
+.btn-agregar-novo { background:#0078D4; color:#fff; font-weight:bold; }
+.btn-agregar-novo:hover { background:#005a9e; }
+#formMusico { display: none; }
+#formMusico .form-linha-principal {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
@@ -104,10 +108,10 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
   overflow-x: auto;
   white-space: nowrap;
 }
-#formMusico > select,
-#formMusico > input,
-#formMusico > button,
-#formMusico > .par-campos {
+#formMusico .form-linha-principal > select,
+#formMusico .form-linha-principal > input,
+#formMusico .form-linha-principal > button,
+#formMusico .form-linha-principal > .par-campos {
   flex: 0 0 auto;
 }
 #formMusico .par-campos[style*="display:flex"] {
@@ -124,6 +128,26 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
   align-items: flex-start !important;
   gap: 4px !important;
 }
+#formMusico .form-linha-detalhes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cfd8e3; }
+.titulo-detalhes { font-size: 12px; font-weight: bold; color: #0078D4; margin-bottom: 6px; }
+.campos-detalhes { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.campo-detalhe { display: flex; flex-direction: column; font-size: 12px; color: #444; }
+.campo-detalhe input, .campo-detalhe select { margin: 2px 0 0 0; width: 180px; padding: 6px; }
+
+/* Detalhes de cada pessoa (aparecem ao clicar no registro) */
+.fila-clicavel { cursor: pointer; }
+.fila-clicavel:hover { background: #f0f7ff; }
+.fila-detalle td { background: #f4f9ff; border-bottom: 2px solid #cfe3f7; padding: 8px 12px; }
+.detalle-inst-titulo { font-weight: bold; color: #0b4a82; font-size: 13px; margin: 2px 0 6px; }
+.detalle-inst-titulo small { font-weight: normal; color: #667; }
+.detalle-instrumento + .detalle-instrumento, .bloco-inst-edit + .bloco-inst-edit { border-top: 1px dashed #b9d3ee; margin-top: 10px; padding-top: 8px; }
+.btn-detalle-mais { margin: 10px 0 2px 0; padding: 4px 10px; font-size: 12px; background: #0078D4; color: #fff; }
+.btn-detalle-mais:hover { background: #005a9e; }
+.detalle-grid { display: flex; flex-wrap: wrap; gap: 10px 28px; font-size: 13px; }
+.detalle-grid span { display: block; font-size: 11px; color: #667; }
+.detalle-grid em.obs-escuela { display: block; font-size: 12px; color: #555; font-style: italic; margin-top: 1px; }
+.detalle-grid label { display: flex; flex-direction: column; font-size: 12px; color: #444; }
+.detalle-grid input, .detalle-grid select { margin: 2px 0 0 0; width: 170px; padding: 4px; }
 
 
 /* --- PAINEL DE AÇÕES E GRÁFICO --- */
@@ -359,10 +383,10 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
       <div class="resumo-card">
         <div class="titulo">Ya tocan en los cultos</div>
         <div class="numero" id="resumo-cultos">0</div>
-        <div style="font-size:11px;color:#777;">ENC. REGIONAL · ENCARGADO · EXAMINADORA · INSTRUCTOR · OFICIALIZADO · CULTO OFICIAL</div>
+        <div style="font-size:11px;color:#777;">ENC. REGIONAL · ENCARGADO · EXAMINADORA · INSTRUCTOR · OFICIALIZADO · AUTORIZADO CULTO OFICIAL</div>
       </div>
       <div class="resumo-card">
-        <div class="titulo">RJM / ENSAYO</div>
+        <div class="titulo">AUTORIZADO RJM/ENSAYOS</div>
         <div class="numero" id="resumo-rjm">0</div>
       </div>
       <div class="resumo-card">
@@ -405,8 +429,9 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
     <div class="eq-nota">No entran en el cálculo: Organista (instrumento único), Acordeón y Sin definir (candidatos sin instrumento). Se respetan los filtros activos.</div>
   </div>
 
-  <h3 class="titulo-form-novo">Agregar Nuevo</h3>
+  <div class="barra-agregar"><button type="button" class="btn-agregar-novo" id="btn-agregar-novo">➕ Agregar Nuevo</button></div>
   <form id="formMusico">
+   <div class="form-linha-principal">
     <select id="provincia" required></select>
     <select id="igreja" required></select>
     <select id="escuelaMusica" required></select>
@@ -435,6 +460,22 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
     <input type="tel" id="contato" maxlength="18" placeholder="+54 9 11 1234-5678">
 
     <button type="submit">Guardar</button>
+   </div>
+   <div class="form-linha-detalhes">
+    <div class="titulo-detalhes">Datos adicionales (opcionales)</div>
+    <div class="campos-detalhes">
+      <label class="campo-detalhe">Fecha de inicio<input type="date" id="fechaInicio"></label>
+      <label class="campo-detalhe">Inicio Ensayo<input type="date" id="fechaInicioEnsayo"></label>
+      <label class="campo-detalhe">Inicio RJM<input type="date" id="fechaInicioRJM"></label>
+      <label class="campo-detalhe">Inicio Culto<input type="date" id="fechaInicioCulto"></label>
+      <label class="campo-detalhe">Fecha Oficialización<input type="date" id="fechaOficializacion"></label>
+      <label class="campo-detalhe">Observación Escuela de Música 1<input type="text" id="escuelaMusicaObs" maxlength="80" placeholder="Ej.: Instrumento"></label>
+      <label class="campo-detalhe">Escuela de Música 2<select id="escuelaMusica2"></select></label>
+      <label class="campo-detalhe">Observación Escuela de Música 2<input type="text" id="escuelaMusica2Obs" maxlength="80" placeholder="Ej.: Teoría"></label>
+      <label class="campo-detalhe">Escuela de Música 3<select id="escuelaMusica3"></select></label>
+      <label class="campo-detalhe">Observación Escuela de Música 3<input type="text" id="escuelaMusica3Obs" maxlength="80"></label>
+    </div>
+   </div>
   </form>
 
   <table>
@@ -1117,7 +1158,7 @@ const provinciasEIgrejas = {
   "CÓRDOBA": ["ANISACATE", "CÓRDOBA", "MONTE BUEY"],
   "ENTRE RÍOS": ["CONCORDIA", "GUALEGUAY", "GUALEGUAYCHÚ BARRIO NORTE", "GUALEGUAYCHÚ CENTRO", "UBAJAY", "ÑANCAY"],
   "FORMOSA": ["CLORINDA", "COLONIA PRIMAVERA", "ESPINILLO", "FORMOSA CENTRO", "FORMOSA EL PALOMAR", "GENERAL BELGRANO", "LAGUNA BLANCA", "MISIÓN TACAAGLE", "POZO DE NAVAGAN"],
-  "GRAN BUENOS AIRES": ["BELLA VISTA", "CARLOS SPEGAZZINI", "CASEROS", "CLAYPOLE", "DOMSELAAR", "GENERAL PACHECO", "GREGORIO DE LAFERRERE", "GUERNICA", "GUERNICA LOMAS", "JOSÉ CLEMENTE PAZ", "LA PLATA", "MERLO NORTE", "MERLO PARQUE SAN MARTÍN", "MORENO", "SANTA BRÍGIDA", "SARANDI", "VILLA LYNCH", "VILLA TORO", "ZÁRATE"],
+  "GRAN BUENOS AIRES": ["ALTOS DE MERLO", "BELLA VISTA", "CARLOS SPEGAZZINI", "CASEROS", "CLAYPOLE", "DOMSELAAR", "GENERAL PACHECO", "GREGORIO DE LAFERRERE", "GUERNICA", "GUERNICA LOMAS", "JOSÉ CLEMENTE PAZ", "LA PLATA", "MERLO NORTE", "MORENO", "SANTA BRÍGIDA", "SARANDI", "VILLA LYNCH", "VILLA TORO", "ZÁRATE"],
   "INTERIOR": ["CORONEL VIDAL", "DOLORES", "GENERAL MADARIAGA", "GOBERNADOR CASTRO", "LA EMILIA", "MAIPÚ", "MAR DEL PLATA", "PÉREZ MILLÁN", "RAMALLO", "SALTO", "SAN NICOLÁS CENTRO", "SAN NICOLÁS PLASTIVERSAL", "SAN PEDRO", "VILLA CAMPI"],
   "JUJUY": ["FRAILE PINTADO", "LIBERTADOR GENERAL SAN MARTÍN", "SAN PEDRO"],
   "MENDOZA": ["JESÚS NAZARENO", "MAIPÚ"],
@@ -1143,6 +1184,75 @@ function normalizarNomesInstrumento(texto) {
     return t.toUpperCase() === "CELLO" ? "CHELO" : t;
   }).join(", ");
 }
+// ---- Renomeações: registros antigos são convertidos ao carregar/importar ----
+const CHAVES_ALIAS_IGREJA = { "ALTOS_DE_MERLO": "MERLO_PARQUE_SAN_MARTIN" };
+function normalizarNomeIgreja(nome) {
+  if (!nome || nome === "-") return nome;
+  return chaveIgrejaBase(nome) === "MERLO_PARQUE_SAN_MARTIN" ? "ALTOS DE MERLO" : nome;
+}
+const TIPOS_RENOMEADOS = {
+  "CULTO OFICIAL": "AUTORIZADO CULTO OFICIAL",
+  "RJM / ENSAYO": "AUTORIZADO RJM/ENSAYOS"
+};
+function normalizarDetallesInstrumentos(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+  const saida = {};
+  Object.entries(obj).forEach(([nome, d]) => {
+    if (!d || typeof d !== "object") return;
+    saida[normalizarNomesInstrumento(nome)] = {
+      ...d,
+      escuelaMusica: normalizarNomeIgreja(d.escuelaMusica),
+      escuelaMusica2: normalizarNomeIgreja(d.escuelaMusica2),
+      escuelaMusica3: normalizarNomeIgreja(d.escuelaMusica3)
+    };
+  });
+  return saida;
+}
+function normalizarNomesTipo(texto) {
+  if (!texto) return texto;
+  return String(texto).split(",").map(t => {
+    const x = t.trim();
+    return TIPOS_RENOMEADOS[x.toUpperCase()] || x;
+  }).join(", ");
+}
+
+// ---- Dados adicionais de cada pessoa (ocultos; aparecem ao clicar no registro) ----
+const CAMPOS_FECHA = [
+  { campo: "fechaInicio",         id: "fecha-inicio",         rotulo: "Fecha de inicio" },
+  { campo: "fechaInicioEnsayo",   id: "fecha-ensayo",         rotulo: "Inicio Ensayo" },
+  { campo: "fechaInicioRJM",      id: "fecha-rjm",            rotulo: "Inicio RJM" },
+  { campo: "fechaInicioCulto",    id: "fecha-culto",          rotulo: "Inicio Culto" },
+  { campo: "fechaOficializacion", id: "fecha-oficializacion", rotulo: "Fecha Oficialización" }
+];
+// Observação de cada Escuela de Música (ex.: instrumento numa igreja, teoria em outra).
+const CAMPOS_OBS_ESCUELA = ["escuelaMusicaObs", "escuelaMusica2Obs", "escuelaMusica3Obs"];
+function formatarFecha(iso, vazio = "—") {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : vazio;
+}
+function normalizarFechaTexto(valor) {
+  const v = String(valor || "").trim();
+  if (!v) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  if (/^\d{5}$/.test(v)) return new Date(Math.round((Number(v) - 25569) * 86400000)).toISOString().slice(0, 10);
+  return "";
+}
+// Até 3 Escuelas de Música por pessoa (escuelaMusica, escuelaMusica2, escuelaMusica3).
+function obterEscuelasMusica(m) {
+  if (!m || tipoDispensaEscuelaMusica(m.tipo)) return [];
+  const dosOutrosInstrumentos = Object.values(m.detallesInstrumentos || {})
+    .flatMap(d => [d?.escuelaMusica, d?.escuelaMusica2, d?.escuelaMusica3]);
+  const todas = [m.escuelaMusica || m.escolaMusica, m.escuelaMusica2, m.escuelaMusica3, ...dosOutrosInstrumentos]
+    .map(e => String(e || "").trim())
+    .filter(e => e && e !== "-");
+  return [...new Set(todas)];
+}
+// Escuelas que precisam de uma cópia-índice (todas, menos a própria igreja do registro).
+function escuelasParaIndice(m) {
+  return obterEscuelasMusica(m).filter(e => chaveIgreja(e) !== chaveIgreja(m?.igreja));
+}
 const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CHELO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA","SIN DEFINIR"];
 
 // Ordem fixa dos instrumentos: usada em todas as pesquisas, listas, tabela e gráfico.
@@ -1151,11 +1261,13 @@ function obterOrdemInstrumento(m) {
   const primeiroInstrumento = (m?.instrumento || "").split(",")[0].trim();
   return ordemInstrumentos.has(primeiroInstrumento) ? ordemInstrumentos.get(primeiroInstrumento) : Number.MAX_SAFE_INTEGER;
 }
-const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
+const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM/ENSAYOS", "ALUMNO"];
 const tiposSemEscuelaMusica = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "EXAMINADO", "INSTRUCTOR", "OFICIALIZADO"];
 
 const igrejaSelect = document.getElementById("igreja");
 const escuelaMusicaSelect = document.getElementById("escuelaMusica");
+const escuelaMusica2Select = document.getElementById("escuelaMusica2");
+const escuelaMusica3Select = document.getElementById("escuelaMusica3");
 const provinciaSelect = document.getElementById("provincia");
 const instrumento1 = document.getElementById("instrumento1");
 const tipo1Select = document.getElementById("tipo");
@@ -1200,13 +1312,19 @@ const dadosPorIgreja = new Map();
 
 // A nova estrutura separa fisicamente os dados por igreja:
 // /musicosPorIglesia/{CHAVE_DA_IGREJA}/{id}
-function chaveIgreja(igreja) {
+function chaveIgrejaBase(igreja) {
   return String(igreja || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+// "ALTOS DE MERLO" (antes "MERLO PARQUE SAN MARTÍN") continua gravada no mesmo nó do banco,
+// assim os dados existentes e as permissões antigas seguem funcionando sem migração.
+function chaveIgreja(igreja) {
+  const chave = chaveIgrejaBase(igreja);
+  return CHAVES_ALIAS_IGREJA[chave] || chave;
 }
 
 function chaveEmailFirebase(email) {
@@ -1234,22 +1352,27 @@ function registroParaIndiceEscuela(registro) {
   return { ...registro, __indiceEscuela: true };
 }
 
+function refsIndicesEscuela(registro) {
+  return escuelasParaIndice(registro).map(e => ref(database, `musicosPorIglesia/${chaveIgreja(e)}/${registro.key}`));
+}
+
+async function gravarIndicesEscuela(registro) {
+  for (const r of refsIndicesEscuela(registro)) {
+    await set(r, registroParaIndiceEscuela(registro));
+  }
+}
+
 async function salvarRegistroComIndice(registro) {
   const dados = { ...registro };
   delete dados.key;
   delete dados.__iglesiaKey;
   delete dados.__indiceEscuela;
   await set(refRegistro({ ...dados, key: registro.key }), dados);
-  const indice = refIndiceEscuela(dados);
-  if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
-    await set(indice, registroParaIndiceEscuela({ ...dados, key: registro.key }));
-  }
+  await gravarIndicesEscuela({ ...dados, key: registro.key });
 }
 
 async function excluirRegistroComIndice(registro) {
-  const refs = [refRegistro(registro)];
-  const indice = refIndiceEscuela(registro);
-  if (indice && chaveIgreja(registro.igreja) !== chaveIgreja(obterEscuelaMusica(registro))) refs.push(indice);
+  const refs = [refRegistro(registro), ...refsIndicesEscuela(registro)];
   await Promise.all(refs.map(r => remove(r)));
 }
 
@@ -1290,7 +1413,7 @@ async function carregarDadosAutorizados() {
         // Índices da Escola de Música são cópias para permitir leitura segura
         // sem liberar a igreja de origem inteira.
         const autorizado = usuarioPodeIgreja(valor.igreja) ||
-          usuarioPodeIgreja(obterEscuelaMusica(valor));
+          obterEscuelasMusica(valor).some(e => usuarioPodeIgreja(e));
         if (!autorizado) return;
 
         // Administrador não deve ver a cópia de índice como outro músico.
@@ -1301,7 +1424,13 @@ async function carregarDadosAutorizados() {
           igrejaKey: valor.igrejaKey || chaveIgreja(valor.igreja) || keyIgreja,
           __iglesiaKey: keyIgreja,
           ...valor,
-          instrumento: normalizarNomesInstrumento(valor.instrumento)
+          instrumento: normalizarNomesInstrumento(valor.instrumento),
+          tipo: normalizarNomesTipo(valor.tipo),
+          igreja: normalizarNomeIgreja(valor.igreja),
+          escuelaMusica: normalizarNomeIgreja(valor.escuelaMusica),
+          escuelaMusica2: normalizarNomeIgreja(valor.escuelaMusica2),
+          escuelaMusica3: normalizarNomeIgreja(valor.escuelaMusica3),
+          detallesInstrumentos: normalizarDetallesInstrumentos(valor.detallesInstrumentos)
         });
       });
       dadosPorIgreja.set(keyIgreja, registros);
@@ -1322,12 +1451,9 @@ async function reindexarEscolasDeMusica() {
       snap.forEach(child => {
         const dados = child.val();
         if (!dados || !dados.nome) return;
-        const escola = obterEscuelaMusica(dados);
-        if (!escola || escola === "-" || chaveIgreja(escola) === chaveIgreja(dados.igreja)) return;
-        tarefas.push(set(
-          ref(database, `musicosPorIglesia/${chaveIgreja(escola)}/${child.key}`),
-          registroParaIndiceEscuela({ ...dados, key: child.key })
-        ));
+        refsIndicesEscuela({ ...dados, key: child.key }).forEach(r => {
+          tarefas.push(set(r, registroParaIndiceEscuela({ ...dados, key: child.key })));
+        });
       });
     }
     await Promise.all(tarefas);
@@ -1362,11 +1488,8 @@ async function migrarDadosAntigos() {
       }
       dados.igrejaKey = chaveIgreja(dados.igreja);
       const destino = ref(database, `musicosPorIglesia/${chaveIgreja(dados.igreja)}/${childSnapshot.key}`);
-      const indice = refIndiceEscuela({ ...dados, key: childSnapshot.key });
       const salvar = set(destino, dados).then(async () => {
-        if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
-          await set(indice, registroParaIndiceEscuela({ ...dados, key: childSnapshot.key }));
-        }
+        await gravarIndicesEscuela({ ...dados, key: childSnapshot.key });
         await remove(childSnapshot.ref);
       });
       operaciones.push(salvar);
@@ -1593,6 +1716,14 @@ function tipoDispensaEscuelaMusica(tipoValor) {
 
 function atualizarEscuelaMusicaPorTipo(tipoValor, selectEscuela) {
   if (!selectEscuela) return;
+  if (selectEscuela === escuelaMusicaSelect) {
+    const dispensa = tipoDispensaEscuelaMusica(tipoValor);
+    [escuelaMusica2Select, escuelaMusica3Select, ...CAMPOS_OBS_ESCUELA.map(id => document.getElementById(id))].forEach(s => {
+      if (!s) return;
+      if (dispensa) s.value = "";
+      s.disabled = dispensa;
+    });
+  }
   if (tipoDispensaEscuelaMusica(tipoValor)) {
     selectEscuela.value = "-";
     selectEscuela.disabled = true;
@@ -1618,6 +1749,16 @@ function carregarOpcionesEscuelaMusica(select, valorSelecionado = "", igrejaCont
   if (permitidas.length === 1 && !valorSelecionado && !igrejaContexto) {
     select.value = permitidas[0];
   }
+  if (select === escuelaMusicaSelect) preencherEscuelasExtras();
+}
+// 2ª e 3ª Escuela de Música (opcionais): qualquer igreja autorizada.
+function preencherEscuelasExtras() {
+  [escuelaMusica2Select, escuelaMusica3Select].forEach(sel => {
+    if (!sel) return;
+    const atual = sel.value;
+    sel.innerHTML = `<option value="">—</option>` + igrejasPermitidas().map(i => `<option value="${i}">${i}</option>`).join("");
+    if (atual) sel.value = atual;
+  });
 }
 function gerenciarBotaoAlternar(idBotao, classeCheckboxes, textoPadrao, textoPlural, elementoTextoFiltro) {
   const botao = document.getElementById(idBotao);
@@ -1777,6 +1918,28 @@ chkHermana.addEventListener("change", () => {
   if (chkHermana.checked) chkHermano.checked = false;
 });
 
+// Botão "Agregar Nuevo": o formulário fica oculto até ser aberto.
+document.getElementById("btn-agregar-novo").addEventListener("click", () => {
+  const form = document.getElementById("formMusico");
+  const botao = document.getElementById("btn-agregar-novo");
+  const aberto = form.style.display === "block";
+  form.style.display = aberto ? "none" : "block";
+  botao.textContent = aberto ? "➕ Agregar Nuevo" : "✖ Cerrar formulario";
+  if (!aberto) document.getElementById("nome").focus();
+});
+
+// Datos adicionales del formulario (fechas y Escuelas de Música 2 y 3).
+function lerCamposAdicionaisFormulario(tiposTexto) {
+  const dispensa = tipoDispensaEscuelaMusica(tiposTexto);
+  const extra = {
+    escuelaMusica2: dispensa ? "" : (escuelaMusica2Select.value || ""),
+    escuelaMusica3: dispensa ? "" : (escuelaMusica3Select.value || "")
+  };
+  CAMPOS_OBS_ESCUELA.forEach(id => { extra[id] = dispensa ? "" : (document.getElementById(id).value || "").trim(); });
+  CAMPOS_FECHA.forEach(c => { extra[c.campo] = document.getElementById(c.campo).value || ""; });
+  return extra;
+}
+
 document.getElementById("formMusico").addEventListener("submit", function(e){
   e.preventDefault();
   const inst1 = instrumento1.value;
@@ -1814,7 +1977,8 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
     tipo: tiposFinal.join(", "), 
     contato: inputContato.value,
     inativo: false,
-    motivoInativo: ""
+    motivoInativo: "",
+    ...lerCamposAdicionaisFormulario(tiposFinal.join(", "))
   };
 
   const existe = lista.some(m => m.nome.toLowerCase() === dados.nome.toLowerCase() && m.igreja === dados.igreja);
@@ -1824,15 +1988,14 @@ document.getElementById("formMusico").addEventListener("submit", function(e){
   }
   push(refIgreja(dados.igreja), dados)
     .then(async (resultado) => {
-      const registroSalvo = { ...dados, key: resultado.key };
-      const indice = refIndiceEscuela(registroSalvo);
-      if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
-        await set(indice, registroParaIndiceEscuela(registroSalvo));
-      }
+      await gravarIndicesEscuela({ ...dados, key: resultado.key });
       document.getElementById("formMusico").reset();
       igrejaSelect.innerHTML = `<option value="">Seleccione una Provincia</option>`;
       carregarOpcionesEscuelaMusica(escuelaMusicaSelect);
       escuelaMusicaSelect.disabled = false;
+      escuelaMusica2Select.disabled = false;
+      escuelaMusica3Select.disabled = false;
+      CAMPOS_OBS_ESCUELA.forEach(id => { document.getElementById(id).disabled = false; });
       containerInstrumentosAdicionais.innerHTML = "";
     })
     .catch((e) => {
@@ -2232,7 +2395,7 @@ function obterParesParaExibicao(m, instrumentosSelecionados, tiposSelecionadas) 
 /* --- RESUMO DE MÚSICOS POR IGLESIA --- */
 const TIPOS_CULTO_RESUMO = [
   "ENC. REGIONAL", "ENCARGADO", "EXAMINADORA",
-  "INSTRUCTOR", "OFICIALIZADO", "CULTO OFICIAL"
+  "INSTRUCTOR", "OFICIALIZADO", "AUTORIZADO CULTO OFICIAL"
 ];
 
 function tipoPerteneceA(tipo, listaTipos) {
@@ -2251,13 +2414,13 @@ function gerarResumoMusicos() {
   ).length;
 
   const resumoRjm = baseResumo.filter(m =>
-    obterParesInstrumentoTipo(m).some(par => tipoPerteneceA(par.tipo, ["RJM / ENSAYO"]))
+    obterParesInstrumentoTipo(m).some(par => tipoPerteneceA(par.tipo, ["AUTORIZADO RJM/ENSAYOS"]))
   ).length;
 
-  // TOTAL DE ALUMNOS: considera conjuntamente CULTO OFICIAL, RJM / ENSAYO e ALUMNO.
+  // TOTAL DE ALUMNOS: considera conjuntamente CULTO OFICIAL, AUTORIZADO RJM/ENSAYOS e ALUMNO.
   const resumoAlunos = baseResumo.filter(m =>
     obterParesInstrumentoTipo(m).some(par =>
-      tipoPerteneceA(par.tipo, ["CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"])
+      tipoPerteneceA(par.tipo, ["AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM/ENSAYOS", "ALUMNO"])
     )
   ).length;
 
@@ -2275,7 +2438,7 @@ function gerarResumoMusicos() {
   // Detalle por iglesia cuando se selecciona una o más iglesias.
   // Para cada categoria, separa ORGANISTAS dos demais MÚSICOS.
   // Conta por instrumento/tipo: quem toca órgão e outro instrumento na mesma categoria entra nas duas colunas.
-  const TIPOS_ALUNOS_RESUMO = ["CULTO OFICIAL", "RJM / ENSAYO", "ALUMNO"];
+  const TIPOS_ALUNOS_RESUMO = ["AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM/ENSAYOS", "ALUMNO"];
   const novoPar = () => ({ org:0, mus:0 });
   const contarCategoria = (pares, tipos, destino) => {
     const doTipo = pares.filter(par => tipoPerteneceA(par.tipo, tipos));
@@ -2289,7 +2452,7 @@ function gerarResumoMusicos() {
     if (!porIglesia[ig]) porIglesia[ig] = { cultos:novoPar(), rjm:novoPar(), alunos:novoPar() };
     const pares = obterParesInstrumentoTipo(m);
     contarCategoria(pares, TIPOS_CULTO_RESUMO, porIglesia[ig].cultos);
-    contarCategoria(pares, ["RJM / ENSAYO"], porIglesia[ig].rjm);
+    contarCategoria(pares, ["AUTORIZADO RJM/ENSAYOS"], porIglesia[ig].rjm);
     contarCategoria(pares, TIPOS_ALUNOS_RESUMO, porIglesia[ig].alunos);
   });
 
@@ -2302,7 +2465,7 @@ function gerarResumoMusicos() {
           <tr>
             <th rowspan="2">Iglesia</th>
             <th colspan="2">Ya tocan en los cultos</th>
-            <th colspan="2">RJM / ENSAYO</th>
+            <th colspan="2">AUTORIZADO RJM/ENSAYOS</th>
             <th colspan="2">Alumnos</th>
           </tr>
           <tr>
@@ -2483,13 +2646,14 @@ function atualizar(){
     return (
       (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
       (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-      (escuelasMusicaSelecionadas.length === 0 || (igrejasPermitidas().includes(obterEscuelaMusica(m)) && escuelasMusicaSelecionadas.includes(obterEscuelaMusica(m)))) &&
+      (escuelasMusicaSelecionadas.length === 0 || obterEscuelasMusica(m).some(e => igrejasPermitidas().includes(e) && escuelasMusicaSelecionadas.includes(e))) &&
       musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
         (m.provincia && m.provincia.toLowerCase().includes(texto)) ||
         (m.instrumento && m.instrumento.toLowerCase().includes(texto)) ||
-        obterEscuelaMusica(m).toLowerCase().includes(texto) ||
+        obterEscuelasMusica(m).join(" ").toLowerCase().includes(texto) ||
+        [m.escuelaMusicaObs, m.escuelaMusica2Obs, m.escuelaMusica3Obs].join(" ").toLowerCase().includes(texto) ||
         (m.hermano && "hermano".includes(texto)) ||
         (m.hermana && "hermana".includes(texto))
       )
@@ -2528,6 +2692,7 @@ function atualizar(){
     const insts = paresDoMusico.map(par => par.instrumento);
     const tps = paresDoMusico.map(par => par.tipo);
 
+    let trDetalleExtra = null;
     if (editKey === m.key) {
       const optionsProvincias = `<option value="">Provincia</option>` + provinciasPermitidas().map(p => `<option value="${p}" ${p === m.provincia ? 'selected' : ''}>${p}</option>`).join('');
       
@@ -2592,6 +2757,8 @@ function atualizar(){
         </td>
       `;
 
+      trDetalleExtra = criarFilaDetalle(m, true);
+
       const btnMais = tr.querySelector(".btn-edit-mais");
       const extrasInstContainer = tr.querySelector(".edit-instrumentos-extras");
       const extrasTipoContainer = tr.querySelector(".edit-tipos-extras");
@@ -2604,6 +2771,20 @@ function atualizar(){
       const selEditEscuela = tr.querySelector(".edit-escuela-musica");
       const selEditTipo1 = tr.querySelector(".edit-tipo1");
 
+      // Mantém uma linha de informações para cada instrumento da linha principal.
+      function sincronizarBlocosEdicao(posRemovida = null) {
+        if (!trDetalleExtra) return;
+        const itens = [{ instrumento: tr.querySelector(".edit-inst1").value, tipo: tr.querySelector(".edit-tipo1").value }];
+        const tiposExtras = [...tr.querySelectorAll(".edit-tipo-extra")];
+        [...tr.querySelectorAll(".edit-inst-extra")].forEach((sel, i) => {
+          itens.push({ instrumento: sel.value, tipo: tiposExtras[i]?.value || "" });
+        });
+        const previos = lerBlocosEdicao(trDetalleExtra);
+        if (posRemovida !== null && posRemovida >= 0) previos.splice(posRemovida + 1, 1);
+        const tiposTexto = itens.map(i => i.tipo).filter(Boolean).join(", ");
+        desenharBlocosEdicao(trDetalleExtra.querySelector(".blocos-edicao"), itens, previos, tipoDispensaEscuelaMusica(tiposTexto));
+      }
+
       function atualizarEscuelaEdicao() {
         const tiposSelecionados = [];
         if (selEditTipo1.value) tiposSelecionados.push(selEditTipo1.value);
@@ -2611,6 +2792,7 @@ function atualizar(){
           if (sel.value) tiposSelecionados.push(sel.value);
         });
         atualizarEscuelaMusicaPorTipo(tiposSelecionados.join(", "), selEditEscuela);
+        sincronizarBlocosEdicao();
       }
 
       function adicionarInstrumentoEdicao(instValor = "", tipoValor = "") {
@@ -2634,6 +2816,7 @@ function atualizar(){
           linhaInst.remove();
           if (linhaTipoRemover) linhaTipoRemover.remove();
           renumerarEdicao();
+          sincronizarBlocosEdicao(index);
           atualizarEscuelaEdicao();
         });
         linhaInst.querySelector("select").addEventListener("change", atualizarEscuelaEdicao);
@@ -2658,9 +2841,11 @@ function atualizar(){
         const btn = linha.querySelector(".btn-edit-remover");
         const tipoLinha = extrasTipoContainer.children[idx];
         btn.addEventListener("click", () => {
+          const posRemovida = [...extrasInstContainer.children].indexOf(linha);
           linha.remove();
           if (tipoLinha) tipoLinha.remove();
           renumerarEdicao();
+          sincronizarBlocosEdicao(posRemovida);
           atualizarEscuelaEdicao();
         });
         linha.querySelector("select").addEventListener("change", atualizarEscuelaEdicao);
@@ -2668,6 +2853,11 @@ function atualizar(){
       });
 
       selEditTipo1.addEventListener("change", atualizarEscuelaEdicao);
+      tr.querySelector(".edit-inst1").addEventListener("change", atualizarEscuelaEdicao);
+      trDetalleExtra.querySelector(".btn-detalle-mais").addEventListener("click", () => {
+        adicionarInstrumentoEdicao();
+        atualizarEscuelaEdicao();
+      });
       atualizarEscuelaEdicao();
 
       selEditProv.addEventListener("change", (e) => {
@@ -2684,6 +2874,12 @@ function atualizar(){
         adicionarInstrumentoEdicao();
         atualizarEscuelaEdicao();
       });
+
+      if (abrirNovoInstrumento === m.key) {
+        abrirNovoInstrumento = null;
+        adicionarInstrumentoEdicao();
+        atualizarEscuelaEdicao();
+      }
 
       chkEditHermano.addEventListener("change", () => {
         if (chkEditHermano.checked) chkEditHermana.checked = false;
@@ -2735,14 +2931,154 @@ function atualizar(){
       tr.querySelector(".btn-excluir").style.display = podeAlterarRegistro ? "inline-block" : "none";
       tr.querySelector(".btn-editar").addEventListener("click", () => editar(m.key));
       tr.querySelector(".btn-excluir").addEventListener("click", () => excluir(m.key));
+      tr.classList.add("fila-clicavel");
+      tr.addEventListener("click", (ev) => {
+        if (ev.target.closest("button, input, select, a")) return;
+        const proxima = tr.nextElementSibling;
+        if (proxima && proxima.classList.contains("fila-detalle")) {
+          proxima.remove();
+          detalhesAbertos.delete(m.key);
+        } else {
+          detalhesAbertos.add(m.key);
+          tr.after(criarFilaDetalle(m, false));
+        }
+      });
     }
     tabela.appendChild(tr);
+    if (trDetalleExtra) tabela.appendChild(trDetalleExtra);
+    else if (detalhesAbertos.has(m.key)) tabela.appendChild(criarFilaDetalle(m, false));
   });
 
   contador.innerHTML = `<strong>Total: ${filtrados.length} músico(s) filtrado(s)</strong>`;
   const container = document.getElementById("grafico-container");
   if (container.style.display === "flex") { atualizarGrafico(filtrados); }
   if (document.getElementById("painel-equilibrio").style.display === "block") { atualizarEquilibrioOrquesta(filtrados); }
+}
+
+const detalhesAbertos = new Set();
+function escaparHtml(texto) {
+  return String(texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+let abrirNovoInstrumento = null;
+
+function opcoesEscuelaHtml(valor) {
+  const lista = igrejasPermitidas();
+  const extra = valor && !lista.includes(valor) ? [valor] : [];
+  return `<option value="">—</option>` + [...extra, ...lista].map(i => `<option value="${i}" ${i === valor ? "selected" : ""}>${i}</option>`).join("");
+}
+
+function tituloInstrumentoHtml(item) {
+  return `<div class="detalle-inst-titulo">🎵 ${escaparHtml(item.instrumento) || "Sin instrumento"}${item.tipo ? ` <small>· ${escaparHtml(item.tipo)}</small>` : ""}</div>`;
+}
+
+// Cada instrumento tem sua linha de informações. A 1ª usa os campos "planos" do registro;
+// as demais ficam em detallesInstrumentos[NOME_DO_INSTRUMENTO].
+function dadosDoInstrumento(m, indice, nome) {
+  return indice === 0 ? m : ((m.detallesInstrumentos && m.detallesInstrumentos[nome]) || {});
+}
+
+function htmlBlocoVista(m, indice, par, dispensa) {
+  const d = dadosDoInstrumento(m, indice, par.instrumento);
+  const slots = [[d.escuelaMusica || d.escolaMusica, d.escuelaMusicaObs], [d.escuelaMusica2, d.escuelaMusica2Obs], [d.escuelaMusica3, d.escuelaMusica3Obs]];
+  const blocos = dispensa ? [] : slots
+    .map(([nome, obs], i) => ({ n: i + 1, nome: String(nome || "").trim(), obs: String(obs || "").trim() }))
+    .filter(b => b.nome && b.nome !== "-");
+  const escuelasHtml = blocos.length
+    ? blocos.map(b => `<div><span>Escuela de Música ${b.n}</span><strong>${b.nome}</strong>${b.obs ? `<em class="obs-escuela">${escaparHtml(b.obs)}</em>` : ""}</div>`).join("")
+    : `<div><span>Escuelas de Música</span><strong>—</strong></div>`;
+  return `<div class="detalle-instrumento">
+    ${tituloInstrumentoHtml(par)}
+    <div class="detalle-grid">
+      ${CAMPOS_FECHA.map(c => `<div><span>${c.rotulo}</span><strong>${formatarFecha(d[c.campo])}</strong></div>`).join("")}
+      ${escuelasHtml}
+    </div>
+  </div>`;
+}
+
+function htmlBlocoEdicao(indice, item, d, dispensa) {
+  const dis = dispensa ? "disabled" : "";
+  const obsInput = (n, valor) => `<label>Observación Escuela de Música ${n}<input type="text" class="bi-obs${n}" maxlength="80" value="${dispensa ? "" : escaparHtml(valor)}" ${dis}></label>`;
+  const escuelaCampos = (n, valor, obs) => `
+      <label>Escuela de Música ${n}<select class="bi-escuela${n}" ${dis}>${opcoesEscuelaHtml(dispensa ? "" : (valor || ""))}</select></label>
+      ${obsInput(n, obs)}`;
+  return `<div class="bloco-inst-edit" data-indice="${indice}">
+    ${tituloInstrumentoHtml(item)}
+    <div class="detalle-grid">
+      ${CAMPOS_FECHA.map(c => `<label>${c.rotulo}<input type="date" class="bi-${c.id}" value="${d[c.campo] || ""}"></label>`).join("")}
+      ${indice === 0 ? obsInput(1, d.escuelaMusicaObs) : escuelaCampos(1, d.escuelaMusica, d.escuelaMusicaObs)}
+      ${escuelaCampos(2, d.escuelaMusica2, d.escuelaMusica2Obs)}
+      ${escuelaCampos(3, d.escuelaMusica3, d.escuelaMusica3Obs)}
+    </div>
+  </div>`;
+}
+
+function lerBlocosEdicao(trDet) {
+  return [...trDet.querySelectorAll(".bloco-inst-edit")].map(b => {
+    const g = sel => (b.querySelector(sel)?.value || "").trim();
+    const d = {};
+    CAMPOS_FECHA.forEach(c => { d[c.campo] = g(".bi-" + c.id); });
+    d.escuelaMusica = g(".bi-escuela1");
+    d.escuelaMusica2 = g(".bi-escuela2");
+    d.escuelaMusica3 = g(".bi-escuela3");
+    d.escuelaMusicaObs = g(".bi-obs1");
+    d.escuelaMusica2Obs = g(".bi-obs2");
+    d.escuelaMusica3Obs = g(".bi-obs3");
+    return d;
+  });
+}
+
+function desenharBlocosEdicao(container, itens, dadosPorIndice, dispensa) {
+  container.innerHTML = itens.map((item, i) => htmlBlocoEdicao(i, item, dadosPorIndice[i] || {}, dispensa)).join("");
+}
+
+function lerCamposAdicionaisEdicao(tr, tiposTexto) {
+  const det = tr.nextElementSibling;
+  const blocos = det && det.classList.contains("fila-detalle") ? lerBlocosEdicao(det) : [];
+  const dispensa = tipoDispensaEscuelaMusica(tiposTexto);
+  const nomes = [tr.querySelector(".edit-inst1").value, ...[...tr.querySelectorAll(".edit-inst-extra")].map(sel => sel.value)];
+  const b0 = blocos[0] || {};
+  const extra = {
+    escuelaMusica2: dispensa ? "" : (b0.escuelaMusica2 || ""),
+    escuelaMusica3: dispensa ? "" : (b0.escuelaMusica3 || "")
+  };
+  CAMPOS_OBS_ESCUELA.forEach((campo, i) => { extra[campo] = dispensa ? "" : (b0[["escuelaMusicaObs", "escuelaMusica2Obs", "escuelaMusica3Obs"][i]] || ""); });
+  CAMPOS_FECHA.forEach(c => { extra[c.campo] = b0[c.campo] || ""; });
+
+  // 2º instrumento em diante
+  const detalles = {};
+  nomes.forEach((nome, i) => {
+    if (i === 0 || !nome || !blocos[i]) return;
+    const b = { ...blocos[i] };
+    if (dispensa) ["escuelaMusica", "escuelaMusica2", "escuelaMusica3", "escuelaMusicaObs", "escuelaMusica2Obs", "escuelaMusica3Obs"].forEach(k => { b[k] = ""; });
+    if (Object.values(b).some(v => v)) detalles[nome] = b;
+  });
+  extra.detallesInstrumentos = detalles;
+  return extra;
+}
+
+// Linha de detalhes (oculta até clicar no registro).
+function criarFilaDetalle(m, editando) {
+  const tr = document.createElement("tr");
+  tr.className = "fila-detalle";
+  const td = document.createElement("td");
+  td.colSpan = 11;
+  const pares = obterParesInstrumentoTipo(m);
+  const itens = pares.length ? pares : [{ instrumento: "", tipo: "" }];
+  const dispensa = tipoDispensaEscuelaMusica(m.tipo);
+  if (editando) {
+    td.innerHTML = `<div class="blocos-edicao"></div>
+      <button type="button" class="btn-detalle-mais" title="Agregar otro instrumento">➕ Instrumento</button>`;
+    desenharBlocosEdicao(td.querySelector(".blocos-edicao"), itens, itens.map((par, i) => dadosDoInstrumento(m, i, par.instrumento)), dispensa);
+  } else {
+    const podeAlterar = acessoAtual?.podeEditar && usuarioPodeIgreja(m.igreja);
+    td.innerHTML = itens.map((par, i) => htmlBlocoVista(m, i, par, dispensa)).join("") +
+      (podeAlterar ? `<button type="button" class="btn-detalle-mais" title="Agregar otro instrumento">➕ Instrumento</button>` : "");
+    const botao = td.querySelector(".btn-detalle-mais");
+    if (botao) botao.addEventListener("click", () => { abrirNovoInstrumento = m.key; editar(m.key); });
+  }
+  tr.appendChild(td);
+  return tr;
 }
 
 function editar(key){ editKey = key; atualizar(); }
@@ -2795,7 +3131,8 @@ function salvarInline(key, tr) {
     tipo: tiposFinal.join(", "),
     contato: contatoNovo,
     inativo: chkInativo,
-    motivoInativo: chkInativo ? txtMotivo : ""
+    motivoInativo: chkInativo ? txtMotivo : "",
+    ...lerCamposAdicionaisEdicao(tr, tiposFinal.join(", "))
   };
 
   const registroAtual = lista.find(m => m.key === key);
@@ -2808,15 +3145,15 @@ function salvarInline(key, tr) {
     await set(refNovo, dados);
     if (!mesmaIgreja) await remove(refAntigo);
 
-    // Atualiza/remove a cópia usada pelo filtro da Escola de Música.
-    const escolaNova = obterEscuelaMusica(dados);
-    const escolaAnterior = obterEscuelaMusica(registroAtual || {});
-    if (escolaAnterior && escolaAnterior !== "-" && chaveIgreja(escolaAnterior) !== chaveIgreja(igrejaAnterior)) {
-      await remove(ref(database, `musicosPorIglesia/${chaveIgreja(escolaAnterior)}/${key}`));
+    // Atualiza/remove as cópias usadas pelo filtro das Escuelas de Música (até 3).
+    const chavesNovas = new Set(escuelasParaIndice(dados).map(chaveIgreja));
+    for (const antiga of escuelasParaIndice(registroAtual || {})) {
+      const ch = chaveIgreja(antiga);
+      if (!chavesNovas.has(ch) && ch !== chaveIgreja(igrejaNova)) {
+        await remove(ref(database, `musicosPorIglesia/${ch}/${key}`));
+      }
     }
-    if (escolaNova && escolaNova !== "-" && chaveIgreja(escolaNova) !== chaveIgreja(igrejaNova)) {
-      await set(ref(database, `musicosPorIglesia/${chaveIgreja(escolaNova)}/${key}`), registroParaIndiceEscuela({ ...dados, key }));
-    }
+    await gravarIndicesEscuela({ ...dados, key });
   })().then(() => { 
     editKey = null; 
     carregarDadosAutorizados();
@@ -2842,7 +3179,7 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
   if (filtrados.length === 0) { alert("No hay datos para exportar."); return; }
   
   const dadosExcel = [
-    ["Provincia", "Común Congregación", "Nombre", "Hermano", "Hermana", "Instrumento", "Tipo", "Escuela de Música", "Contacto", "Inactivo", "Motivo Inactivo"]
+    ["Provincia", "Común Congregación", "Nombre", "Hermano", "Hermana", "Instrumento", "Tipo", "Escuela de Música", "Contacto", "Inactivo", "Motivo Inactivo", "Fecha de inicio", "Inicio Ensayo", "Inicio RJM", "Inicio Culto", "Fecha Oficialización", "Escuela de Música 2", "Escuela de Música 3", "Observación Escuela 1", "Observación Escuela 2", "Observación Escuela 3"]
   ];
   
   filtrados.forEach(m => {
@@ -2857,7 +3194,13 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
       obterEscuelaMusica(m),
       m.contato || "",
       m.inativo ? "SI" : "NO",
-      m.motivoInativo || ""
+      m.motivoInativo || "",
+      ...CAMPOS_FECHA.map(c => formatarFecha(m[c.campo], "")),
+      m.escuelaMusica2 || "",
+      m.escuelaMusica3 || "",
+      m.escuelaMusicaObs || "",
+      m.escuelaMusica2Obs || "",
+      m.escuelaMusica3Obs || ""
     ]);
   });
   
@@ -2900,6 +3243,10 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
     const idxContato = encabezados.indexOf("contacto");
     const idxInativo = encabezados.indexOf("inactivo");
     const idxMotivo = encabezados.indexOf("motivo inactivo");
+    const idxFechas = CAMPOS_FECHA.map(c => encabezadosNormalizados.indexOf(normalizarEncabezado(c.rotulo.toLowerCase())));
+    const idxEscuela2 = encabezadosNormalizados.indexOf("escuela de musica 2");
+    const idxEscuela3 = encabezadosNormalizados.indexOf("escuela de musica 3");
+    const idxObsEscuelas = [1, 2, 3].map(n => encabezadosNormalizados.indexOf(`observacion escuela ${n}`));
     
     if (idxIgreja === -1 || idxNome === -1) {
       alert("El archivo XLSX debe contener las columnas 'Común Congregación' y 'Nombre'.");
@@ -2914,13 +3261,13 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
       
       const getVal = (idx) => (idx !== -1 && fila[idx] !== undefined && fila[idx] !== null) ? fila[idx].toString().trim() : "";
 
-      const igrejaImportar = getVal(idxIgreja).toUpperCase();
+      const igrejaImportar = normalizarNomeIgreja(getVal(idxIgreja)).toUpperCase();
       const provinciaImportar = getVal(idxProvincia).toUpperCase();
       const nomeImportar = getVal(idxNome).toUpperCase();
       const hermanoImportar = ["SI", "TRUE", "X", "1"].includes(getVal(idxHermano).toUpperCase());
       const hermanaImportar = ["SI", "TRUE", "X", "1"].includes(getVal(idxHermana).toUpperCase());
       const instrumentoImportar = getVal(idxInstrumento).toUpperCase();
-      const tipoImportar = getVal(idxTipo).toUpperCase();
+      const tipoImportar = normalizarNomesTipo(getVal(idxTipo)).toUpperCase();
       const contatoImportar = getVal(idxContato).toUpperCase();
       const inativoImportar = getVal(idxInativo).toUpperCase() === 'SI' || getVal(idxInativo).toUpperCase() === 'TRUE';
       const motivoImportar = getVal(idxMotivo);
@@ -2941,27 +3288,27 @@ document.getElementById("inputImportar").addEventListener("change", (event) => {
 
       let dados = { 
         provincia: provinciaImportar,
-        igreja: getVal(idxIgreja), 
+        igreja: normalizarNomeIgreja(getVal(idxIgreja)), 
         igrejaKey: chaveIgreja(getVal(idxIgreja)),
-        escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : getVal(idxEscuelaMusica),
+        escuelaMusica: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "-" : normalizarNomeIgreja(getVal(idxEscuelaMusica)),
         nome: nomeImportar,
         hermano: hermanoImportar && !hermanaImportar,
         hermana: hermanaImportar && !hermanoImportar,
         instrumento: normalizarNomesInstrumento(getVal(idxInstrumento)), 
-        tipo: getVal(idxTipo), 
+        tipo: normalizarNomesTipo(getVal(idxTipo)), 
         contato: getVal(idxContato),
         inativo: inativoImportar,
-        motivoInativo: motivoImportar
+        motivoInativo: motivoImportar,
+        escuelaMusica2: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "" : normalizarNomeIgreja(getVal(idxEscuela2)),
+        escuelaMusica3: tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "" : normalizarNomeIgreja(getVal(idxEscuela3))
       };
+      CAMPOS_FECHA.forEach((c, i) => { dados[c.campo] = normalizarFechaTexto(getVal(idxFechas[i])); });
+      CAMPOS_OBS_ESCUELA.forEach((campo, i) => { dados[campo] = tipoDispensaEscuelaMusica(getVal(idxTipo)) ? "" : getVal(idxObsEscuelas[i]); });
       
       if (!igrejaValida || !tipoValido || !instrumentosValidos) { dados.invalid = true; }
       if (!usuarioPodeIgreja(dados.igreja)) continue;
       const resultado = await push(refIgreja(dados.igreja), dados);
-      const registroSalvo = { ...dados, key: resultado.key };
-      const indice = refIndiceEscuela(registroSalvo);
-      if (indice && chaveIgreja(dados.igreja) !== chaveIgreja(obterEscuelaMusica(dados))) {
-        await set(indice, registroParaIndiceEscuela(registroSalvo));
-      }
+      await gravarIndicesEscuela({ ...dados, key: resultado.key });
     }
     alert(`Importación finalizada.`); event.target.value = '';
   };
