@@ -386,7 +386,7 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
         <div style="font-size:11px;color:#777;">ENC. REGIONAL · ENCARGADO · EXAMINADORA · INSTRUCTOR · OFICIALIZADO · AUTORIZADO CULTO OFICIAL</div>
       </div>
       <div class="resumo-card">
-        <div class="titulo">AUTORIZADO RJM/ENSAYOS</div>
+        <div class="titulo">AUTORIZADO RJM / ENSAYOS</div>
         <div class="numero" id="resumo-rjm">0</div>
       </div>
       <div class="resumo-card">
@@ -1192,7 +1192,8 @@ function normalizarNomeIgreja(nome) {
 }
 const TIPOS_RENOMEADOS = {
   "CULTO OFICIAL": "AUTORIZADO CULTO OFICIAL",
-  "RJM / ENSAYO": "AUTORIZADO RJM/ENSAYOS"
+  "RJM / ENSAYO": "AUTORIZADO RJM / ENSAYOS",
+  "AUTORIZADO RJM/ENSAYOS": "AUTORIZADO RJM / ENSAYOS"
 };
 function normalizarDetallesInstrumentos(obj) {
   if (!obj || typeof obj !== "object") return obj;
@@ -1261,7 +1262,7 @@ function obterOrdemInstrumento(m) {
   const primeiroInstrumento = (m?.instrumento || "").split(",")[0].trim();
   return ordemInstrumentos.has(primeiroInstrumento) ? ordemInstrumentos.get(primeiroInstrumento) : Number.MAX_SAFE_INTEGER;
 }
-const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM/ENSAYOS", "ALUMNO"];
+const tipos = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "INSTRUCTOR", "OFICIALIZADO", "AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM / ENSAYOS", "ALUMNO"];
 const tiposSemEscuelaMusica = ["ENC. REGIONAL", "ENCARGADO", "EXAMINADORA", "EXAMINADO", "INSTRUCTOR", "OFICIALIZADO"];
 
 const igrejaSelect = document.getElementById("igreja");
@@ -2414,13 +2415,13 @@ function gerarResumoMusicos() {
   ).length;
 
   const resumoRjm = baseResumo.filter(m =>
-    obterParesInstrumentoTipo(m).some(par => tipoPerteneceA(par.tipo, ["AUTORIZADO RJM/ENSAYOS"]))
+    obterParesInstrumentoTipo(m).some(par => tipoPerteneceA(par.tipo, ["AUTORIZADO RJM / ENSAYOS"]))
   ).length;
 
-  // TOTAL DE ALUMNOS: considera conjuntamente CULTO OFICIAL, AUTORIZADO RJM/ENSAYOS e ALUMNO.
+  // TOTAL DE ALUMNOS: considera conjuntamente CULTO OFICIAL, AUTORIZADO RJM / ENSAYOS e ALUMNO.
   const resumoAlunos = baseResumo.filter(m =>
     obterParesInstrumentoTipo(m).some(par =>
-      tipoPerteneceA(par.tipo, ["AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM/ENSAYOS", "ALUMNO"])
+      tipoPerteneceA(par.tipo, ["AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM / ENSAYOS", "ALUMNO"])
     )
   ).length;
 
@@ -2438,7 +2439,7 @@ function gerarResumoMusicos() {
   // Detalle por iglesia cuando se selecciona una o más iglesias.
   // Para cada categoria, separa ORGANISTAS dos demais MÚSICOS.
   // Conta por instrumento/tipo: quem toca órgão e outro instrumento na mesma categoria entra nas duas colunas.
-  const TIPOS_ALUNOS_RESUMO = ["AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM/ENSAYOS", "ALUMNO"];
+  const TIPOS_ALUNOS_RESUMO = ["AUTORIZADO CULTO OFICIAL", "AUTORIZADO RJM / ENSAYOS", "ALUMNO"];
   const novoPar = () => ({ org:0, mus:0 });
   const contarCategoria = (pares, tipos, destino) => {
     const doTipo = pares.filter(par => tipoPerteneceA(par.tipo, tipos));
@@ -2452,7 +2453,7 @@ function gerarResumoMusicos() {
     if (!porIglesia[ig]) porIglesia[ig] = { cultos:novoPar(), rjm:novoPar(), alunos:novoPar() };
     const pares = obterParesInstrumentoTipo(m);
     contarCategoria(pares, TIPOS_CULTO_RESUMO, porIglesia[ig].cultos);
-    contarCategoria(pares, ["AUTORIZADO RJM/ENSAYOS"], porIglesia[ig].rjm);
+    contarCategoria(pares, ["AUTORIZADO RJM / ENSAYOS"], porIglesia[ig].rjm);
     contarCategoria(pares, TIPOS_ALUNOS_RESUMO, porIglesia[ig].alunos);
   });
 
@@ -2465,7 +2466,7 @@ function gerarResumoMusicos() {
           <tr>
             <th rowspan="2">Iglesia</th>
             <th colspan="2">Ya tocan en los cultos</th>
-            <th colspan="2">AUTORIZADO RJM/ENSAYOS</th>
+            <th colspan="2">AUTORIZADO RJM / ENSAYOS</th>
             <th colspan="2">Alumnos</th>
           </tr>
           <tr>
