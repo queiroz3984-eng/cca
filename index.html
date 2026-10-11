@@ -426,7 +426,7 @@ option[value="SIN DEFINIR"] { color:#d11a2a; font-weight:bold; }
     </div>
     <div class="eq-sub" style="margin-top:16px;">Adecuación por instrumento</div>
     <div id="eq-tabla"></div>
-    <div class="eq-nota">No entran en el cálculo: Organista (instrumento único), Acordeón y Sin definir (candidatos sin instrumento). Se respetan los filtros activos.</div>
+    <div class="eq-nota">No entran en el cálculo: Órgano (instrumento único), Acordeón y Sin definir (candidatos sin instrumento). Se respetan los filtros activos.</div>
   </div>
 
   <div class="barra-agregar"><button type="button" class="btn-agregar-novo" id="btn-agregar-novo">➕ Agregar Nuevo</button></div>
@@ -1177,11 +1177,12 @@ provincias.forEach(p => { igrejas = igrejas.concat(provinciasEIgrejas[p]); });
 igrejas = [...new Set(igrejas)].sort(); // Remover duplicados y ordenar
 
 // "CELLO" passou a se chamar "CHELO": registros antigos são convertidos ao carregar/importar.
+const INSTRUMENTOS_RENOMEADOS = { "CELLO": "CHELO", "ORGANISTA": "ÓRGANO", "ORGANO": "ÓRGANO" };
 function normalizarNomesInstrumento(texto) {
   if (!texto) return texto;
   return String(texto).split(",").map(i => {
     const t = i.trim();
-    return t.toUpperCase() === "CELLO" ? "CHELO" : t;
+    return INSTRUMENTOS_RENOMEADOS[t.toUpperCase()] || t;
   }).join(", ");
 }
 // ---- Renomeações: registros antigos são convertidos ao carregar/importar ----
@@ -1254,7 +1255,7 @@ function obterEscuelasMusica(m) {
 function escuelasParaIndice(m) {
   return obterEscuelasMusica(m).filter(e => chaveIgreja(e) !== chaveIgreja(m?.igreja));
 }
-const instrumentos = ["ORGANISTA","ACORDEÓN","VIOLÍN","VIOLA","CHELO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA","SIN DEFINIR"];
+const instrumentos = ["ÓRGANO","ACORDEÓN","VIOLÍN","VIOLA","CHELO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA","SIN DEFINIR"];
 
 // Ordem fixa dos instrumentos: usada em todas as pesquisas, listas, tabela e gráfico.
 const ordemInstrumentos = new Map(instrumentos.map((instrumento, indice) => [instrumento, indice]));
@@ -2180,7 +2181,7 @@ function atualizarEquilibrioOrquesta(dadosFiltrados) {
   const instrumentosSelecionados = pegarValoresSelecionados("chk-instrumento");
   const tiposSelecionadas = pegarValoresSelecionados("chk-tipo");
 
-  // ---- Contagem por linha da planilha (organista, acordeón e SIN DEFINIR ficam de fora) ----
+  // ---- Contagem por linha da planilha (órgano, acordeón e SIN DEFINIR ficam de fora) ----
   const cont = {};
   const contInst = {};
   let total = 0;
@@ -2443,8 +2444,8 @@ function gerarResumoMusicos() {
   const novoPar = () => ({ org:0, mus:0 });
   const contarCategoria = (pares, tipos, destino) => {
     const doTipo = pares.filter(par => tipoPerteneceA(par.tipo, tipos));
-    if (doTipo.some(par => (par.instrumento || "").trim().toUpperCase() === "ORGANISTA")) destino.org++;
-    if (doTipo.some(par => (par.instrumento || "").trim().toUpperCase() !== "ORGANISTA")) destino.mus++;
+    if (doTipo.some(par => (par.instrumento || "").trim().toUpperCase() === "ÓRGANO")) destino.org++;
+    if (doTipo.some(par => (par.instrumento || "").trim().toUpperCase() !== "ÓRGANO")) destino.mus++;
   };
 
   const porIglesia = {};
