@@ -1130,7 +1130,7 @@ function aplicarAcessoNaInterface() {
 function reconstruirFiltroEscuelasMusica(listaIgrejas) {
   containerEscuelasMusica.innerHTML =
     `<div class="dropdown-acoes-topo"><a href="#" class="btn-alternar-todos" id="btn-toggle-escuelas-musica">Seleccionar Todas</a></div>`;
-  ["-", ...listaIgrejas].forEach(ig => {
+  ["-", ...listaIgrejas, ...ESCUELAS_ESPECIAIS].forEach(ig => {
     const label = document.createElement("label");
     label.innerHTML = `<input type="checkbox" value="${ig}" class="chk-escuela-musica"> ${ig}`;
     containerEscuelasMusica.appendChild(label);
@@ -1241,6 +1241,11 @@ function normalizarFechaTexto(valor) {
   if (/^\d{5}$/.test(v)) return new Date(Math.round((Number(v) - 25569) * 86400000)).toISOString().slice(0, 10);
   return "";
 }
+// Opções de Escuela de Música que não são igrejas (não geram cópia-índice nem dependem de permissão).
+const ESCUELAS_ESPECIAIS = ["CLASE ONLINE", "CLASE PARTICULAR"];
+function opcoesDeEscuela() {
+  return [...igrejasPermitidas(), ...ESCUELAS_ESPECIAIS];
+}
 // Até 3 Escuelas de Música por pessoa (escuelaMusica, escuelaMusica2, escuelaMusica3).
 function obterEscuelasMusica(m) {
   if (!m || tipoDispensaEscuelaMusica(m.tipo)) return [];
@@ -1253,7 +1258,7 @@ function obterEscuelasMusica(m) {
 }
 // Escuelas que precisam de uma cópia-índice (todas, menos a própria igreja do registro).
 function escuelasParaIndice(m) {
-  return obterEscuelasMusica(m).filter(e => chaveIgreja(e) !== chaveIgreja(m?.igreja));
+  return obterEscuelasMusica(m).filter(e => !ESCUELAS_ESPECIAIS.includes(e) && chaveIgreja(e) !== chaveIgreja(m?.igreja));
 }
 const instrumentos = ["ÓRGANO","ACORDEÓN","VIOLÍN","VIOLA","CHELO","FLAUTA","CLARINETE","CLARINETE BAJO","CLARÓN","OBOE","FAGOT","SAXO SOPRANO","SAXO ALTO","SAXO TENOR","SAXO BARÍTONO","TROMPETA","FISCORNO","TROMPPA","TROMBONITO","TROMBÓN","BOMBARDINO","TUBA","SIN DEFINIR"];
 
@@ -1706,7 +1711,7 @@ tipos.forEach(tp => {
   containerTipos.appendChild(label);
 });
 
-["-", ...igrejas].forEach(escuela => {
+["-", ...igrejas, ...ESCUELAS_ESPECIAIS].forEach(escuela => {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${escuela}" class="chk-escuela-musica"> ${escuela}`;
   containerEscuelasMusica.appendChild(label);
@@ -1745,7 +1750,7 @@ function carregarOpcionesEscuelaMusica(select, valorSelecionado = "", igrejaCont
     : (permitidas.length === 1 ? permitidas : permitidas);
 
   select.innerHTML = `<option value="">Escuela de Música</option><option value="-" ${valorSelecionado === '-' ? 'selected' : ''}>-</option>`;
-  opcoes.forEach(i => {
+  [...opcoes, ...ESCUELAS_ESPECIAIS].forEach(i => {
     select.innerHTML += `<option value="${i}" ${i === valorSelecionado ? 'selected' : ''}>${i}</option>`;
   });
   if (permitidas.length === 1 && !valorSelecionado && !igrejaContexto) {
@@ -1758,7 +1763,7 @@ function preencherEscuelasExtras() {
   [escuelaMusica2Select, escuelaMusica3Select].forEach(sel => {
     if (!sel) return;
     const atual = sel.value;
-    sel.innerHTML = `<option value="">—</option>` + igrejasPermitidas().map(i => `<option value="${i}">${i}</option>`).join("");
+    sel.innerHTML = `<option value="">—</option>` + opcoesDeEscuela().map(i => `<option value="${i}">${i}</option>`).join("");
     if (atual) sel.value = atual;
   });
 }
@@ -2648,7 +2653,7 @@ function atualizar(){
     return (
       (provinciasSelecionadas.length === 0 || provinciasSelecionadas.includes(m.provincia)) &&
       (igrejasSelecionadas.length === 0 || igrejasSelecionadas.includes(m.igreja)) &&
-      (escuelasMusicaSelecionadas.length === 0 || obterEscuelasMusica(m).some(e => igrejasPermitidas().includes(e) && escuelasMusicaSelecionadas.includes(e))) &&
+      (escuelasMusicaSelecionadas.length === 0 || obterEscuelasMusica(m).some(e => (ESCUELAS_ESPECIAIS.includes(e) || igrejasPermitidas().includes(e)) && escuelasMusicaSelecionadas.includes(e))) &&
       musicoAtendeFiltrosInstrumentoTipo(m, instrumentosSelecionados, tiposSelecionadas) &&
       (
         m.nome.toLowerCase().includes(texto) ||
@@ -2701,7 +2706,7 @@ function atualizar(){
       const igsDaProvincia = m.provincia ? igrejasDaProvinciaPermitidas(m.provincia) : igrejasPermitidas();
       const optionsIgrejas = `<option value="">Iglesia</option>` + igsDaProvincia.map(i => `<option value="${i}" ${i === m.igreja ? 'selected' : ''}>${i}</option>`).join('');
       const escuelaSelecionada = obterEscuelaMusica(m);
-      const optionsEscuelas = `<option value="">Escuela de Música</option><option value="-" ${escuelaSelecionada === '-' ? 'selected' : ''}>-</option>` + igrejasPermitidas().map(i => `<option value="${i}" ${i === escuelaSelecionada ? 'selected' : ''}>${i}</option>`).join('');
+      const optionsEscuelas = `<option value="">Escuela de Música</option><option value="-" ${escuelaSelecionada === '-' ? 'selected' : ''}>-</option>` + opcoesDeEscuela().map(i => `<option value="${i}" ${i === escuelaSelecionada ? 'selected' : ''}>${i}</option>`).join('');
       
       const optionsInst1 = instrumentos.map(i => `<option value="${i}" ${i === insts[0] ? 'selected' : ''}>${i}</option>`).join('');
       const optionsTipo1 = tipos.map(t => `<option value="${t}" ${t === tps[0] ? 'selected' : ''}>${t}</option>`).join('');
@@ -2965,7 +2970,7 @@ function escaparHtml(texto) {
 let abrirNovoInstrumento = null;
 
 function opcoesEscuelaHtml(valor) {
-  const lista = igrejasPermitidas();
+  const lista = opcoesDeEscuela();
   const extra = valor && !lista.includes(valor) ? [valor] : [];
   return `<option value="">—</option>` + [...extra, ...lista].map(i => `<option value="${i}" ${i === valor ? "selected" : ""}>${i}</option>`).join("");
 }
